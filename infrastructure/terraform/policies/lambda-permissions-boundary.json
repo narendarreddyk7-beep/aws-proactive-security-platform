@@ -1,0 +1,64 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BoundaryMaximumPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "kms:Decrypt",
+        "kms:GenerateDataKey",
+        "kms:DescribeKey",
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords"
+      ],
+      "Resource": [
+        "${table_arn}",
+        "${table_arn}/index/*",
+        "${log_group_arn}:*",
+        "${kms_key_arn}",
+        "arn:${partition}:xray:${region}:${account_id}:*"
+      ]
+    },
+    {
+      "Sid": "BoundaryDenyEverythingOfConsequence",
+      "Effect": "Deny",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:CreateAccessKey",
+        "iam:CreatePolicy",
+        "iam:CreateRole",
+        "iam:CreateUser",
+        "iam:DeleteRolePermissionsBoundary",
+        "iam:PassRole",
+        "iam:PutRolePolicy",
+        "iam:UpdateAssumeRolePolicy",
+        "sts:AssumeRole",
+        "sts:GetFederationToken",
+        "dynamodb:Scan",
+        "dynamodb:DeleteTable",
+        "dynamodb:DeleteItem",
+        "cognito-idp:AdminUpdateUserAttributes",
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminSetUserPassword",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:AddPermission",
+        "lambda:InvokeFunction",
+        "secretsmanager:GetSecretValue",
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+        "s3:GetObject",
+        "s3:PutObject",
+        "ec2:CreateNetworkInterface",
+        "ec2:RunInstances"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

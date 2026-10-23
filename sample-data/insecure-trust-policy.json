@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "SYNTHETIC deliberately-insecure trust/resource policy. Exercises the principal-level",
+    "rules (IAM007 wildcard principal, IAM008 confused deputy) which do not appear in an",
+    "identity policy. Account id 000000000000 is a placeholder; this is not deployed."
+  ],
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AnyAwsAccountMayAssumeThisRole",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "sts:AssumeRole"
+    },
+    {
+      "Sid": "ServiceTrustWithoutSourceCondition",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "lambda.amazonaws.com",
+          "events.amazonaws.com"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    },
+    {
+      "Sid": "WildcardPrincipalNarrowedByOrganization",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::synthetic-example-bucket/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalOrgID": "o-synthetic00"
+        }
+      }
+    }
+  ]
+}

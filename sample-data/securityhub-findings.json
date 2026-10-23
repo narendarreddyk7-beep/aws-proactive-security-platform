@@ -1,0 +1,191 @@
+{
+  "_comment": [
+    "SYNTHETIC AWS Security Hub ASFF findings, shaped as the EventBridge 'Security Hub",
+    "Findings - Imported' detail payload. Account id 000000000000 is a placeholder and",
+    "every ARN is fabricated.",
+    "",
+    "Used by:",
+    "  - security-automation/finding_triage.py --format securityhub",
+    "  - infrastructure/modules/security_hub_triage unit tests",
+    "",
+    "The third record is deliberately malformed (no Resources, no Severity) so the",
+    "handler's tolerance of bad events is demonstrable rather than assumed."
+  ],
+  "findings": [
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:securityhub:us-east-1:000000000000:subscription/aws-foundational-security-best-practices/v/1.0.0/IAM.1/finding/synthetic-0001",
+      "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+      "ProductName": "Security Hub",
+      "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/IAM.1",
+      "AwsAccountId": "000000000000",
+      "Region": "us-east-1",
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ],
+      "CreatedAt": "2026-03-01T08:00:00.000Z",
+      "UpdatedAt": "2026-03-18T08:00:00.000Z",
+      "FirstObservedAt": "2026-03-01T08:00:00.000Z",
+      "LastObservedAt": "2026-03-18T08:00:00.000Z",
+      "Severity": {
+        "Label": "HIGH",
+        "Normalized": 70,
+        "Original": "HIGH"
+      },
+      "Title": "IAM policies should not allow full \"*\" administrative privileges",
+      "Description": "A customer managed IAM policy grants full administrative privileges by allowing all actions on all resources.",
+      "Remediation": {
+        "Recommendation": {
+          "Text": "Replace the wildcard action and resource with the specific actions and ARNs the workload requires.",
+          "Url": "https://docs.aws.amazon.com/console/securityhub/IAM.1/remediation"
+        }
+      },
+      "Resources": [
+        {
+          "Type": "AwsIamPolicy",
+          "Id": "arn:aws:iam::000000000000:policy/synthetic-overbroad-policy",
+          "Partition": "aws",
+          "Region": "us-east-1"
+        }
+      ],
+      "Compliance": {
+        "Status": "FAILED"
+      },
+      "Workflow": {
+        "Status": "NEW"
+      },
+      "RecordState": "ACTIVE"
+    },
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:securityhub:us-east-1:000000000000:subscription/aws-foundational-security-best-practices/v/1.0.0/DynamoDB.1/finding/synthetic-0002",
+      "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+      "ProductName": "Security Hub",
+      "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/DynamoDB.1",
+      "AwsAccountId": "000000000000",
+      "Region": "us-east-1",
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ],
+      "CreatedAt": "2026-03-10T09:30:00.000Z",
+      "UpdatedAt": "2026-03-19T09:30:00.000Z",
+      "FirstObservedAt": "2026-03-10T09:30:00.000Z",
+      "LastObservedAt": "2026-03-19T09:30:00.000Z",
+      "Severity": {
+        "Label": "MEDIUM",
+        "Normalized": 40
+      },
+      "Title": "DynamoDB tables should automatically scale capacity with demand",
+      "Description": "A DynamoDB table is using provisioned capacity without auto scaling configured.",
+      "Remediation": {
+        "Recommendation": {
+          "Text": "Enable auto scaling, or switch the table to on-demand capacity.",
+          "Url": "https://docs.aws.amazon.com/console/securityhub/DynamoDB.1/remediation"
+        }
+      },
+      "Resources": [
+        {
+          "Type": "AwsDynamoDbTable",
+          "Id": "arn:aws:dynamodb:us-east-1:000000000000:table/synthetic-unrelated-table",
+          "Partition": "aws",
+          "Region": "us-east-1"
+        }
+      ],
+      "Compliance": {
+        "Status": "FAILED"
+      },
+      "Workflow": {
+        "Status": "NEW"
+      },
+      "RecordState": "ACTIVE"
+    },
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:securityhub:us-east-1:000000000000:subscription/synthetic/finding/malformed-0003",
+      "GeneratorId": "synthetic-malformed-generator",
+      "Title": "Deliberately malformed finding: no Resources, no Severity"
+    },
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:securityhub:us-east-1:000000000000:subscription/aws-foundational-security-best-practices/v/1.0.0/CloudTrail.2/finding/synthetic-0004",
+      "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+      "ProductName": "Security Hub",
+      "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/CloudTrail.2",
+      "AwsAccountId": "000000000000",
+      "Region": "us-east-1",
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices/Logging"
+      ],
+      "CreatedAt": "2026-02-01T06:00:00.000Z",
+      "UpdatedAt": "2026-03-19T06:00:00.000Z",
+      "FirstObservedAt": "2026-02-01T06:00:00.000Z",
+      "Severity": {
+        "Label": "CRITICAL",
+        "Normalized": 90
+      },
+      "Title": "CloudTrail should have encryption at-rest enabled",
+      "Description": "A CloudTrail trail is not configured to use SSE-KMS encryption for its log files.",
+      "Remediation": {
+        "Recommendation": {
+          "Text": "Configure the trail to encrypt log files with a customer managed KMS key.",
+          "Url": "https://docs.aws.amazon.com/console/securityhub/CloudTrail.2/remediation"
+        }
+      },
+      "Resources": [
+        {
+          "Type": "AwsCloudTrailTrail",
+          "Id": "arn:aws:cloudtrail:us-east-1:000000000000:trail/synthetic-trail",
+          "Partition": "aws",
+          "Region": "us-east-1"
+        }
+      ],
+      "Compliance": {
+        "Status": "FAILED"
+      },
+      "Workflow": {
+        "Status": "NOTIFIED"
+      },
+      "RecordState": "ACTIVE"
+    },
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:securityhub:us-east-1:000000000000:subscription/aws-foundational-security-best-practices/v/1.0.0/Lambda.1/finding/synthetic-0005",
+      "ProductArn": "arn:aws:securityhub:us-east-1::product/aws/securityhub",
+      "GeneratorId": "aws-foundational-security-best-practices/v/1.0.0/Lambda.1",
+      "AwsAccountId": "000000000000",
+      "Region": "us-east-1",
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ],
+      "CreatedAt": "2026-01-15T12:00:00.000Z",
+      "UpdatedAt": "2026-03-19T12:00:00.000Z",
+      "FirstObservedAt": "2026-01-15T12:00:00.000Z",
+      "Severity": {
+        "Label": "LOW"
+      },
+      "Title": "Lambda function policies should prohibit public access",
+      "Description": "A Lambda function resource-based policy allows public invocation.",
+      "Remediation": {
+        "Recommendation": {
+          "Text": "Scope the resource-based policy to a specific principal and source ARN.",
+          "Url": "https://docs.aws.amazon.com/console/securityhub/Lambda.1/remediation"
+        }
+      },
+      "Resources": [
+        {
+          "Type": "AwsLambdaFunction",
+          "Id": "arn:aws:lambda:us-east-1:000000000000:function:synthetic-public-function",
+          "Partition": "aws",
+          "Region": "us-east-1"
+        }
+      ],
+      "Compliance": {
+        "Status": "PASSED"
+      },
+      "Workflow": {
+        "Status": "RESOLVED"
+      },
+      "RecordState": "ARCHIVED"
+    }
+  ]
+}

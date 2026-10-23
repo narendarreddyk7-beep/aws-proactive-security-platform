@@ -1,0 +1,81 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TicketAndMembershipDataAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:Query"
+      ],
+      "Resource": [
+        "${table_arn}",
+        "${table_arn}/index/GSI1"
+      ]
+    },
+    {
+      "Sid": "WriteOwnLogsOnly",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "${log_group_arn}:*"
+    },
+    {
+      "Sid": "DecryptOwnConfigurationAndData",
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt",
+        "kms:GenerateDataKey",
+        "kms:DescribeKey"
+      ],
+      "Resource": "${kms_key_arn}",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": [
+            "lambda.${region}.amazonaws.com",
+            "dynamodb.${region}.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyTableWideReadsAndDestructiveOperations",
+      "Effect": "Deny",
+      "Action": [
+        "dynamodb:Scan",
+        "dynamodb:DeleteItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:DeleteTable",
+        "dynamodb:UpdateTable",
+        "dynamodb:CreateTable",
+        "dynamodb:ExportTableToPointInTime",
+        "dynamodb:RestoreTableFromBackup"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyCredentialAndPolicySelfModification",
+      "Effect": "Deny",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:CreatePolicy",
+        "iam:CreateRole",
+        "iam:DeleteRolePermissionsBoundary",
+        "iam:PassRole",
+        "iam:PutRolePolicy",
+        "iam:UpdateAssumeRolePolicy",
+        "sts:AssumeRole",
+        "kms:DisableKey",
+        "kms:PutKeyPolicy",
+        "kms:ScheduleKeyDeletion",
+        "logs:DeleteLogGroup",
+        "logs:DeleteLogStream",
+        "logs:PutRetentionPolicy"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

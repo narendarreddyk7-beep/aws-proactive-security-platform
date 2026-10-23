@@ -1,0 +1,95 @@
+# ---------------------------------------------------------------------------
+# Terraform state backend — EXAMPLE
+#
+# Copy to `backend.tf` and fill in your own bucket and table before the first
+# `terraform init`. Not committed as `backend.tf` because the bucket name is
+# deployment-specific and because a wrong value here points state at someone
+# else's bucket.
+#
+# WHY STATE IS SENSITIVE
+# ----------------------
+# Terraform state is NOT a build artifact. For this configuration it contains:
+#
+#   * every resource ARN and id (a map of the deployment),
+#   * the Cognito user pool and app client configuration,
+#   * the full text of every IAM policy,
+#   * the rendered Lambda environment variables.
+#
+# For other configurations it can also contain generated passwords and key
+# material in plaintext. Treat state exactly as you would a credentials file:
+# encrypted, versioned, access-logged, and never in git. `.gitignore` in this
+# repository already blocks `*.tfstate*`.
+#
+# REQUIRED BUCKET PROPERTIES
+# --------------------------
+#   * Versioning enabled        -- lets you recover from a corrupt or
+#                                  truncated state write, which is otherwise
+#                                  an unrecoverable loss of the resource map.
+#   * Default encryption (SSE-KMS with a CMK preferred over SSE-S3).
+#   * Public access blocked at the bucket AND the account level.
+#   * A bucket policy denying `aws:SecureTransport = false`.
+#   * Server access logging or CloudTrail data events enabled -- you want to
+#     know who read state, not just who wrote it.
+#   * A lifecycle rule expiring noncurrent versions after ~90 days, so the
+#     history of a sensitive object does not grow without limit.
+#
+# LOCKING
+# -------
+# Terraform 1.10+ supports native S3 state locking via `use_lockfile = true`,
+# which removes the DynamoDB lock table entirely. Both forms are shown; use
+# the lockfile form unless you are pinned below 1.10.
+# ---------------------------------------------------------------------------
+
+terraform {
+  backend "s3" {
+    bucket = "REPLACE-ME-terraform-state-<account-id>"
+    key    = "support-platform/dev/terraform.tfstate"
+    region = "us-east-1"
+
+    # Encrypt the state object at rest. Always set this.
+    encrypt = true
+
+    # Customer-managed key, so the state object is protected by a key policy
+    # you control and can revoke.
+    kms_key_id = "arn:aws:kms:us-east-1:REPLACE-ME:key/REPLACE-ME"
+
+    # --- Locking: Terraform >= 1.10 (preferred) ---------------------------
+    # Native S3 conditional-write locking. No extra table to pay for or
+    # forget to create.
+    use_lockfile = true
+
+    # --- Locking: Terraform < 1.10 ---------------------------------------
+    # Uncomment and create a DynamoDB table with partition key `LockID` (S).
+    # Without a lock, two concurrent applies can corrupt state.
+    # dynamodb_table = "terraform-state-locks"
+
+    # Refuse to use state from a bucket in another account (guards against a
+    # typo pointing at a bucket someone else controls).
+    # expected_bucket_owner = "REPLACE-ME-account-id"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Bootstrapping note
+#
+# The state bucket cannot be created by the configuration that stores its
+# state in it. Create it once, out of band, with its own small Terraform
+# configuration using a local backend, or with the CLI:
+#
+#   aws s3api create-bucket --bucket <name> --region us-east-1
+#   aws s3api put-bucket-versioning --bucket <name> \
+#       --versioning-configuration Status=Enabled
+#   aws s3api put-bucket-encryption --bucket <name> \
+#       --server-side-encryption-configuration '{
+#         "Rules":[{"ApplyServerSideEncryptionByDefault":{
+#           "SSEAlgorithm":"aws:kms","KMSMasterKeyID":"<key-arn>"},
+#           "BucketKeyEnabled":true}]}'
+#   aws s3api put-public-access-block --bucket <name> \
+#       --public-access-block-configuration \
+#       BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+#
+# For local experimentation with no backend block at all, state lands in
+# `terraform.tfstate` in this directory. That file is gitignored, but it is
+# still unencrypted on disk — do not use a local backend for anything with
+# real data in it.
+# ---------------------------------------------------------------------------

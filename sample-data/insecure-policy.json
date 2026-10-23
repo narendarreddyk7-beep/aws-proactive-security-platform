@@ -1,0 +1,78 @@
+{
+  "_comment": [
+    "SYNTHETIC deliberately-insecure policy used to demonstrate every detection rule in",
+    "security-automation/iam_policy_checker.py. Account id 000000000000 is a placeholder.",
+    "",
+    "This file is NOT deployed anywhere and never was. It exists so the checker's rules",
+    "have a positive test case, and so the CI pipeline's gating behaviour can be",
+    "demonstrated with a run that genuinely fails.",
+    "",
+    "Expected: non-zero exit with findings for IAM001-IAM011."
+  ],
+  "Version": "2008-10-17",
+  "Statement": [
+    {
+      "Sid": "FullAdministrativeAccess",
+      "Effect": "Allow",
+      "Action": "*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EntireDynamoDbService",
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": "arn:aws:dynamodb:us-east-1:000000000000:table/support-platform-dev"
+    },
+    {
+      "Sid": "UnscopedLogAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DeleteLogGroup",
+        "logs:GetLogEvents"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PrivilegeEscalationPrimitives",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole",
+        "iam:AttachRolePolicy",
+        "iam:CreatePolicyVersion",
+        "lambda:UpdateFunctionCode"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "UnscopedSecretAndDataReads",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "ssm:GetParameters",
+        "s3:GetObject",
+        "dynamodb:Scan"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "InvertedMatching",
+      "Effect": "Allow",
+      "NotAction": [
+        "iam:DeleteUser"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:StopLogging",
+        "guardduty:DeleteDetector",
+        "config:StopConfigurationRecorder"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

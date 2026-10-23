@@ -1,0 +1,62 @@
+{
+  "_comment": [
+    "SYNTHETIC least-privilege policy — the shape this project's Lambda execution role",
+    "actually deploys. Account id 000000000000 is a placeholder and not a real account.",
+    "Used as the compliant fixture for security-automation/iam_policy_checker.py.",
+    "Running the checker against this file should produce zero blocking findings."
+  ],
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TicketAndMembershipDataAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:Query"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:000000000000:table/support-platform-dev",
+        "arn:aws:dynamodb:us-east-1:000000000000:table/support-platform-dev/index/GSI1"
+      ]
+    },
+    {
+      "Sid": "WriteOwnLogsOnly",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:us-east-1:000000000000:log-group:/aws/lambda/support-platform-dev-api:*"
+    },
+    {
+      "Sid": "DecryptOwnConfigurationAndData",
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt",
+        "kms:GenerateDataKey",
+        "kms:DescribeKey"
+      ],
+      "Resource": "arn:aws:kms:us-east-1:000000000000:key/11111111-2222-3333-4444-555555555555",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": [
+            "lambda.us-east-1.amazonaws.com",
+            "dynamodb.us-east-1.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyTableWideReadsAndDestructiveOperations",
+      "Effect": "Deny",
+      "Action": [
+        "dynamodb:Scan",
+        "dynamodb:DeleteItem",
+        "dynamodb:DeleteTable",
+        "dynamodb:BatchWriteItem"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
