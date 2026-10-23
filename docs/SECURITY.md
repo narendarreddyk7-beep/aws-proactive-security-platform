@@ -201,6 +201,28 @@ limitation L3.
 
 ## 4. CI status — honest
 
+**Run `39988484351` (2026-10-23) was fully green: all 12 jobs, `security-gate` included.**
+Both project-written gates executed in CI for the first time on that run and passed — the
+IAM policy analyzer against the deployed policy documents, and the self-test asserting it
+still rejects a known-insecure fixture.
+
+Getting there took five runs. The four that failed are worth listing, because every one was
+a real defect that the local 17/17 pipeline reported as clean:
+
+| Run | Failure | Nature |
+|---|---|---|
+| #1 | **Zero runs, no error** | Triggers named `main`; the default branch was `master` |
+| #2–3 | Lock drift | The lock was pinned for Python 3.13 against a 3.12 Lambda runtime — wrong for the deployed artifact |
+| #3 | `terraform fmt` | Four module files never formatted; `fmt` had only been run one directory deeper |
+| #4 | IAM analyzer exit 2 | `--input` given a directory; it takes `--input-dir` |
+| #4 | Dev-tree advisories | **Not a defect** — the SCA gate finding real vulnerabilities (AR-07) |
+
+**Still outstanding:** branch protection is not configured, so `security-gate` reports
+without blocking. Until it is the required status check, the gating is demonstrated but not
+enforced.
+
+
+
 **The workflow now executes, and CodeQL has produced results.** It was pushed to GitHub on
 2026-10-23 and
 immediately revealed a misconfiguration worth recording: the triggers named `main` while

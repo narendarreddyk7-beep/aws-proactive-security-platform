@@ -366,7 +366,7 @@ The project's assurance stops here, and saying so precisely is part of the work.
 |---|---|---|
 | **L1** | **Nothing deployed to AWS.** No account used | Live JWT rejection, real IAM enforcement, Cognito flows and alarm firing are all **unverified**. 13 tests skip for exactly this reason |
 | **L2** | **Partly closed.** `terraform fmt` and `validate` ran on a separate machine (Terraform 1.17.0, AWS provider 6.70.0) on 2026-10-23 — the binary is not installable in the build environment. `validate` **found a real defect** (a `templatefile` vars map that had drifted), now fixed, and the configuration is canonically formatted. Two `key_schema` deprecation warnings remain unmigrated. `plan`/`apply` still unrun — that is L1 |
-| **L3** | **Partly closed.** The workflow now runs on GitHub, and **CodeQL has executed and passed** — closing the "no results at all" gap. The first push produced zero runs and no error (triggers named `main`, default branch was `master`). Three runs have executed; two failed correctly, with the `security-gate` job rejecting them for real stage failures that are now fixed or formally accepted. **Not yet observed: a run where every stage passes**, and branch protection making `security-gate` required |
+| **L3** | **Substantially closed.** The pipeline runs on GitHub and run `39988484351` was **fully green — all 12 jobs**, `security-gate` included. CodeQL passes. Reaching green took five runs and surfaced five real defects invisible to local analysis. **Remaining:** branch protection is not set, so the gate reports rather than blocks |
 | **L5** | DynamoDB behaviour asserted against **`moto`** | Conditional-write semantics and GSI consistency are verified against an emulator, not the real service |
 | **L6** | **Security Hub never enabled** | The ASFF transformation is unit-tested with 38 synthetic events; end-to-end delivery is unverified. Off by default |
 | **L7** | **Author and reviewer are the same engineer** | The weakest form of review. An independent reviewer would find things this one did not |
@@ -389,8 +389,8 @@ The project's assurance stops here, and saying so precisely is part of the work.
 1. **Deploy to a sandbox and run the 13 AWS-gated tests.** Now the single largest
    assurance gap — closes L1, L2 and L5 in one move, and is the only way to confirm the
    `Scan` and membership-write denials are enforced in practice rather than on paper.
-2. **Get a fully green pipeline run, then make `security-gate` the required check.** The
-   workflow now runs and CodeQL passes; a run with every stage green is still unverified.
+2. **Make `security-gate` the required status check in branch protection.** A fully green
+   run is on record; the gate currently reports rather than blocks a merge.
 3. **Get an independent review.** The limitation no amount of self-review can close.
 
 ---

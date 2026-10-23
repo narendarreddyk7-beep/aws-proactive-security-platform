@@ -564,7 +564,7 @@ Stated so the demo is not mistaken for more than it is:
 | Real DynamoDB semantics | `moto` emulates conditional writes and consistency | Limitation L5 |
 | CloudWatch alarms firing | Nothing deployed; thresholds are reasoned estimates, never tuned | Limitation L1 |
 | `terraform validate` / `plan` | The binary cannot be installed in the authoring environment | Limitation L2 |
-| A fully green CI pipeline run | The workflow now runs on GitHub and CodeQL passes, but no run has had every stage green yet | Limitation L3 |
+| Branch protection enforcing the gate | Run `39988484351` was fully green, but `security-gate` is not yet a required status check, so it reports rather than blocks | Limitation L3 |
 
 The local demo proves the **application's** security controls. It does not prove the
 **cloud** controls, and this project does not claim that it does.

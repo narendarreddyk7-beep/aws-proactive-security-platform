@@ -108,7 +108,7 @@ and stated wherever it is relevant.
 | M4 | Manual code review, findings, remediation, regression evidence | ✅ |
 | M5 | Terraform infrastructure (2 tables, least-privilege IAM) | 🟡 — `fmt` and `validate` now pass on a real Terraform install; `plan`/`apply` unrun (L1) |
 | M6 | Security automation: IAM analyzer + finding triage engine | ✅ |
-| M7 | GitHub Actions security pipeline | 🟡 — implemented and locally mirrored; never executed (L3) |
+| M7 | GitHub Actions security pipeline | ✅ — run `39988484351` fully green, all 12 jobs incl. `security-gate`. Branch protection still unset (L3) |
 | M8 | Monitoring, optional Security Hub triage, incident runbooks | 🟡 — runbooks ✅; alarms never observed firing (L1) |
 | M9 | Final validation and security assessment | ✅ |
 | M10 | Portfolio deliverables | ✅ |
@@ -299,7 +299,7 @@ Carried forward, not hidden. Full detail:
 |---|---|---|
 | L1 | No AWS account used; nothing deployed | `docs/AWS_DEPLOYMENT.md`, README |
 | L2 | **Partly closed 2026-10-23.** `fmt` and `validate` were run on a separate machine (the binary is not installable here) — `validate` found a real defect, now fixed. Two deprecation warnings remain unmigrated; `plan`/`apply` still unrun (that is L1) | `docs/AWS_DEPLOYMENT.md` |
-| L3 | **Partly closed.** Workflow now runs and CodeQL passes; a fully green run and branch protection are still unverified. Actions tag-pinned not SHA-pinned | `docs/SECURITY.md` §4 |
+| L3 | **Substantially closed.** Run `39988484351` fully green, all 12 jobs. Remaining: branch protection unset, so the gate reports rather than blocks. Actions tag-pinned not SHA-pinned | `docs/SECURITY.md` §4 |
 
 | L5 | DynamoDB behaviour asserted against `moto`, not the real service | `docs/TESTING.md` |
 | L6 | Security Hub never enabled; ASFF transformation unit-tested only | `docs/AWS_DEPLOYMENT.md` §7 |
@@ -327,7 +327,7 @@ Ranked. Full list of 13 deferred safeguards:
 | # | Action | Addresses |
 |---|---|---|
 | 1 | Deploy to a sandbox AWS account and run the 13 AWS-gated tests | L1, L2, L5 — now the largest gap |
-| 2 | Push to GitHub and observe one pipeline run | L3 — CodeQL has produced nothing so far |
+| 2 | Make `security-gate` the required status check in branch protection | L3 — the gate reports but does not block |
 | 3 | Independent security review by another engineer | L7 |
 | 4 | Mandate MFA for the administrator role; shorten the production access-token TTL | AR-03 |
 | 5 | Add WAF rate-based rules and per-tenant usage plans | AR-05 |

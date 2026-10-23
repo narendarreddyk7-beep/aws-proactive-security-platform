@@ -289,10 +289,15 @@ module files that had never been formatted, and a `--input` vs `--input-dir` usa
 the very tool I'd written. Plus three genuine dev-tree advisories the SCA gate found, now
 formally accepted as AR-07 rather than silenced.
 
-Still unverified: a run where *every* stage is green, and branch protection making
-`security-gate` the required check so it blocks a merge rather than merely reporting.
-Everything except CodeQL is reproduced by `scripts/run_security_checks.sh`, which passes
-17/17.
+It took five runs to go green. Run `39988484351` passed all 12 jobs, including both
+project-written gates executing in CI for the first time: the IAM analyzer against the
+deployed policy documents, and the self-test proving it still rejects a known-insecure
+fixture.
+
+Still outstanding: branch protection is not configured, so `security-gate` **reports
+without blocking**. Until it is the required status check, nothing stops a red build being
+merged — the gating is demonstrated, not enforced. Everything except CodeQL is also
+reproduced by `scripts/run_security_checks.sh`, which passes 17/17.
 
 ---
 

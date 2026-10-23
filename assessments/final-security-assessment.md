@@ -366,13 +366,32 @@ Stated plainly. Each is a real gap in assurance, not a formality.
 |---|---|---|
 | **L1** | **Nothing was deployed to AWS.** No account was used. | `terraform plan/apply/destroy` unexercised. Live JWT rejection, Cognito flows, real IAM enforcement and alarm firing are all **unverified**. Infrastructure confidence rests on static analysis and review only |
 | **L2** | **`terraform validate` ran on 2026-10-23 and found a real defect.** It cannot be run *in this build environment* — `releases.hashicorp.com` is outside the egress allow-list (proxy `403 to CONNECT`) — so it was run on a separate machine with Terraform 1.17.0 / AWS provider 6.70.0. **It failed:** `aws_iam_policy.lambda_boundary` rendered its template through an inline vars map that had drifted, so `${membership_table_arn}` was unresolvable. Checkov, the IAM analyzer and the custom linter all passed, because none of them resolve `templatefile()` arguments. Fixed by using the shared `local.policy_template_vars`, and the linter gained rule **TF013** so the class is now caught without the binary. `terraform fmt -recursive` was then run on that machine and its output applied here, so the configuration is now canonically formatted. **Still outstanding:** the provider emits two `hash_key`/`range_key is deprecated, use key_schema instead` warnings that have not yet been migrated — warnings only, `validate` succeeds and `apply` works. `terraform plan` and `apply` remain unrun (that is L1, not L2) |
-| **L3** | **The workflow now executes; a fully green run has not yet been observed.** Pushed on 2026-10-23. The first push produced **zero runs and no error** — the triggers named `main` while the default branch was `master`. After fixing that, three runs have executed and **CodeQL has run and passed (`security-extended`, ~1 minute)**, so the long-standing "CodeQL has produced no results at all" gap is closed. Runs #2 and #3 failed overall, correctly: the `security-gate` job rejected them because real stages failed — a lock pinned for the wrong interpreter, four unformatted module files, a `--input`/`--input-dir` usage error, and three genuine dev-tree advisories. All are fixed or formally accepted. **What remains unverified is a run in which every stage passes**, and branch protection making `security-gate` the required check |
+| **L3** | **Substantially closed 2026-10-23.** The pipeline now runs on GitHub and **run `39988484351` was fully green — all 12 jobs, with the `security-gate` job reporting "Verify every stage passed"**. CodeQL has run and passed on four consecutive runs. Getting there took five runs and exposed five real defects, none of which were findable from the authoring environment: triggers naming `main` against a `master` default branch (zero runs, no error), a dependency lock pinned for Python 3.13 against a 3.12 Lambda runtime, four unformatted Terraform module files, a `--input`/`--input-dir` usage error in this project's own analyzer, and three genuine dev-tree advisories (now AR-07). **What remains: branch protection is not configured**, so `security-gate` reports rather than blocks — nothing yet prevents merging a red build |
 | ~~**L4**~~ | ~~No dependency lock file~~ | **RESOLVED 2026-10-23.** `application/requirements.lock` pins all 21 runtime packages with sha256 hashes; the Lambda build installs from it with `--require-hashes`; `pip-audit` audits the lock, so the audited tree is the shipped tree; and a CI gate recompiles and diffs to catch lock drift. The earlier reasoning (lower bounds so advisories surface) is satisfied instead by the weekly scheduled CI run auditing the lock |
 | **L5** | **DynamoDB behaviour is asserted against `moto`**, not real DynamoDB. | Conditional-write semantics, `ValidationException` shapes and GSI consistency are verified against an emulator. The expressions are standard and reviewed, but real-service behaviour is unconfirmed |
 | **L6** | **Security Hub was never enabled.** | The ASFF transformation is unit-tested with synthetic events; end-to-end EventBridge delivery is unverified. The integration is off by default and the project is fully demonstrable without it |
 | **L7** | **Author and reviewer are the same engineer.** | The weakest form of review. An independent reviewer would find issues this review did not. No external validation of the findings or their severities |
 | **L8** | **No load, fuzz or penetration testing.** | T-13 (flooding) is reasoned about, not measured. Input validation is tested with targeted cases, not fuzzed |
 | **L9** | **Membership provisioning is out of band and unimplemented.** | The authorization source of truth is populated by a process that does not exist yet, so its own security is unassessed. Now the dominant residual exposure for T-06, since the IAM side was closed by the table split |
+
+---
+
+### A process failure worth recording
+
+Between CI runs #3 and #4 the module formatting was **fixed, then un-fixed**. Run #3 passed
+`terraform fmt` because the fix had been applied on the machine that has Terraform. That
+machine's commit was then overwritten by a force-push of the copy authored here, which had
+never had the fix — and the next run failed on the same step again.
+
+The cause was not the force-push. It was treating the copy without the toolchain as
+canonical. `terraform fmt` and `terraform plan` can only be produced where Terraform runs;
+for those artefacts the machine that can generate them is the source of truth, and
+everything else syncs *from* it. Requesting `git diff --stat` rather than the diff itself
+compounded it: the change was visible as a line count but was never actually transferred.
+
+Recorded here because it is the same class of error as the `templatefile` vars drift and
+the inline lock check — **two copies of something that must agree, with no mechanism
+forcing them to.**
 
 ---
 
@@ -391,7 +410,7 @@ Stated plainly. Each is a real gap in assurance, not a formality.
 | # | Action | Addresses | Why this priority |
 |---|---|---|---|
 | **1** | **Deploy to a sandbox AWS account and run the 13 AWS-gated tests** | L1, L2, L5 | Now the single largest assurance gap. Converts 13 skipped tests into real evidence, and is the only way to run `terraform validate/plan` and confirm `Scan` and the membership-write `Deny` are genuinely enforced |
-| **2** | **Observe a fully green pipeline run, then make `security-gate` the required status check in branch protection** | L3 | The workflow now runs and CodeQL passes. What is still unverified is a run where *every* stage passes, and the gate actually blocking a merge rather than merely reporting |
+| **2** | **Make `security-gate` the required status check in branch protection** | L3 | A fully green run is now on record (`39988484351`). The gate reports but does not yet *block*: nothing prevents merging a red build, so the gating is demonstrated but not enforced |
 | **3** | **Independent security review by another engineer** | L7 | The methodological limitation no amount of self-review can close, and now the highest-value remaining item that needs no infrastructure |
 | **4** | **Mandate MFA for the administrator role; shorten production access-token TTL** | AR-03 | Narrows the replay window on the highest-privilege accounts. Configurable today; needs a product decision |
 | **5** | **Add WAF rate-based rules and per-tenant usage plans** | AR-05, T-13 | The only control that stops one tenant's flood becoming everyone's outage. Needs a deployment to tune |
