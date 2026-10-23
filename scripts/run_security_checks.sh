@@ -155,7 +155,7 @@ stage "5a. Finding triage (aggregate every report)" bash -c '
   for f in reports/checkov.json reports/bandit.json reports/pip-audit.json reports/iam-findings.json; do
     [ -s "$f" ] && INPUTS+=(--input "$f")
   done
-  if [ ${#INPUTS[@]} -eq 0 ]; then
+  if [ -z "${INPUTS[0]+set}" ]; then   # same bash 3.2 empty-array caveat
     echo "No tool reports to aggregate." ; exit 0
   fi
   python3 security-automation/finding_triage.py \
@@ -169,13 +169,27 @@ stage "5a. Finding triage (aggregate every report)" bash -c '
 hr
 printf '\033[1;34mSUMMARY\033[0m\n'
 hr
-for name in "${PASSED_STAGES[@]}"; do printf '  \033[1;32mPASS\033[0m  %s\n' "$name"; done
-for name in "${FAILED_STAGES[@]}"; do printf '  \033[1;31mFAIL\033[0m  %s\n' "$name"; done
+# bash < 4.4 -- macOS ships 3.2 -- treats an EMPTY array as unset when
+# ${arr[@]} is expanded under `set -u`. FAILED_STAGES is empty on exactly one
+# path, the all-pass path, so that was the single path this script had never
+# completed: a clean run aborted here and exited 1. CI runs bash 5 on Ubuntu
+# and never saw it. ${arr[@]+"${arr[@]}"} expands to nothing instead of
+# erroring, and keeps elements containing spaces intact.
+n_pass=0
+n_fail=0
+for name in ${PASSED_STAGES[@]+"${PASSED_STAGES[@]}"}; do
+  printf '  \033[1;32mPASS\033[0m  %s\n' "$name"
+  n_pass=$((n_pass + 1))
+done
+for name in ${FAILED_STAGES[@]+"${FAILED_STAGES[@]}"}; do
+  printf '  \033[1;31mFAIL\033[0m  %s\n' "$name"
+  n_fail=$((n_fail + 1))
+done
 echo
-printf 'Passed: %s   Failed: %s\n' "${#PASSED_STAGES[@]}" "${#FAILED_STAGES[@]}"
+printf 'Passed: %s   Failed: %s\n' "$n_pass" "$n_fail"
 printf 'Reports: %s/\n\n' "$REPORTS_DIR"
 
-if [ ${#FAILED_STAGES[@]} -gt 0 ] && [ "$GATE" = true ]; then
+if [ "$n_fail" -gt 0 ] && [ "$GATE" = true ]; then
   echo "One or more stages failed. Nothing is auto-suppressed: fix the finding," >&2
   echo "or record it as an accepted risk in assessments/final-security-assessment.md" >&2
   echo "with a documented, targeted exception." >&2
