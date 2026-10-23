@@ -205,21 +205,18 @@ jobs:
             --format json --output reports/pip-audit.json || true
           python -m pip_audit --requirement application/requirements.lock --strict
 
-      - name: Lock file is in sync with requirements.txt
-        # A lock that has drifted from its source is a lock nobody can trust:
-        # the audited tree and the deployed tree stop being the same thing.
-        # Recompile and diff rather than relying on a developer remembering.
+      - name: Lock targets the Lambda runtime, and is in sync
+        # scripts/check_lock.sh, not an inline copy: this runner and
+        # scripts/run_security_checks.sh must not be able to drift apart.
+        #
+        # This step failed on the first real CI run -- the lock had been
+        # generated on 3.13 while CI recompiles on 3.12, and pip-compile
+        # resolves per interpreter, so a correct lock looked like drift. The
+        # lock is now generated for the Lambda runtime and the check reports
+        # what it cannot verify instead of guessing.
         run: |
           python -m pip install --quiet 'pip-tools>=7.4'
-          python -m piptools compile --generate-hashes --strip-extras --quiet \
-            --output-file /tmp/requirements.lock.check application/requirements.txt
-          if ! diff <(grep -v '^#' application/requirements.lock) \
-                    <(grep -v '^#' /tmp/requirements.lock.check); then
-            echo "::error::application/requirements.lock is stale. Regenerate it with:"
-            echo "::error::python -m piptools compile --generate-hashes --strip-extras --output-file application/requirements.lock application/requirements.txt"
-            exit 1
-          fi
-          echo "Lock file is in sync."
+          ./scripts/check_lock.sh
         shell: bash
 
       - name: Audit development dependencies
@@ -264,7 +261,11 @@ jobs:
         id: setup-terraform
         continue-on-error: true   # see the note in the next step
         with:
-          terraform_version: '1.9.8'
+          # Pinned to the version the configuration was formatted with.
+          # `terraform fmt` output can differ between versions, so a CI pin
+          # that drifts from the developers' version turns formatting into a
+          # phantom failure.
+          terraform_version: '1.17.0'
           terraform_wrapper: false
 
       - name: Terraform fmt and validate
@@ -279,6 +280,11 @@ jobs:
             echo "::error::Terraform could not be installed; fmt/validate did not run."
             exit 1
           fi
+          # From the repo root and recursive ON PURPOSE: this must cover
+          # infrastructure/modules/ as well as infrastructure/terraform/.
+          # Running `fmt` inside infrastructure/terraform/ does NOT reach the
+          # module directory, which is how four module files reached CI
+          # unformatted on the first run.
           terraform fmt -check -recursive
           terraform -chdir=infrastructure/terraform init -backend=false
           terraform -chdir=infrastructure/terraform validate

@@ -78,30 +78,10 @@ stage "2b. pip-audit (runtime dependencies)" bash -c '
   python3 -m pip_audit --requirement application/requirements.lock --strict
 '
 
-# A lock file that has drifted from its source is a lock file nobody can trust:
-# the audited tree and the deployed tree stop being the same thing. Rather than
-# relying on a developer remembering, recompile and diff.
-stage "2c. Lock file is in sync with requirements.txt" bash -c '
-  if ! python3 -c "import piptools" 2>/dev/null; then
-    echo "pip-tools not installed; skipping drift check (install: pip install pip-tools)" >&2
-    exit 0
-  fi
-  python3 -m piptools compile --generate-hashes --strip-extras --quiet \
-    --output-file /tmp/requirements.lock.check application/requirements.txt >/dev/null 2>&1
-  # Ignore the header, which records the output path and so always differs.
-  if diff <(grep -v "^#" application/requirements.lock) \
-          <(grep -v "^#" /tmp/requirements.lock.check) >/dev/null; then
-    echo "Lock file is in sync."
-  else
-    echo "ERROR: application/requirements.lock is stale." >&2
-    echo "Regenerate it:" >&2
-    echo "  python -m piptools compile --generate-hashes --strip-extras \\" >&2
-    echo "    --output-file application/requirements.lock application/requirements.txt" >&2
-    diff <(grep -v "^#" application/requirements.lock) \
-         <(grep -v "^#" /tmp/requirements.lock.check) | head -20 >&2
-    exit 1
-  fi
-'
+# Lock integrity. Implemented in scripts/check_lock.sh so CI and this runner
+# share one implementation -- duplicating it inline in both is how the
+# templatefile vars map drifted.
+stage "2c. Lock targets the Lambda runtime, and is in sync" ./scripts/check_lock.sh
 
 # --- Stage 3: infrastructure security -------------------------------------
 stage "3a. Terraform reference linter (root)" \
