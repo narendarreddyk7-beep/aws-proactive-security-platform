@@ -62,8 +62,10 @@ resource "aws_dynamodb_table" "dedup" {
     enabled        = true
   }
 
+  # Unconditional. See the kms_key_arn variable description for why this is
+  # not feature-flagged.
   server_side_encryption {
-    enabled     = var.kms_key_arn != null
+    enabled     = true
     kms_key_arn = var.kms_key_arn
   }
 
@@ -201,7 +203,6 @@ resource "aws_sqs_queue" "triage_dlq" {
   name = "${local.function_name}-dlq"
 
   message_retention_seconds = 1209600 # 14 days, the maximum
-  sqs_managed_sse_enabled   = var.kms_key_arn == null
   kms_master_key_id         = var.kms_key_arn
 
   tags = merge(var.tags, { Name = "${local.function_name}-dlq" })

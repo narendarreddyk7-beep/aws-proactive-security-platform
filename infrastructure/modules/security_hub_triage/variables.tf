@@ -20,11 +20,23 @@ variable "sns_topic_arn" {
 
 variable "kms_key_arn" {
   description = <<-EOT
-    Customer-managed KMS key for the dedup table, log group, DLQ and Lambda
-    environment variables. Null falls back to AWS-managed keys.
+    KMS key ARN (or alias ARN) protecting the dedup table, log group, DLQ and
+    Lambda environment variables.
+
+    REQUIRED, with no default, deliberately. An optional encryption key means
+    the unencrypted path is the one that gets deployed when someone forgets,
+    and a conditional `enabled = var.kms_key_arn != null` is also invisible to
+    static analysis -- Checkov cannot resolve it and correctly reports
+    CKV_AWS_119. Making the key mandatory removes both problems. The root
+    module passes its customer-managed key, falling back to the AWS-managed
+    `alias/aws/dynamodb` when `create_kms_key = false`.
   EOT
-  type        = string
-  default     = null
+  type = string
+
+  validation {
+    condition     = can(regex("^arn:aws[a-z-]*:kms:", var.kms_key_arn))
+    error_message = "kms_key_arn must be a KMS key or alias ARN."
+  }
 }
 
 variable "lambda_build_dir" {
@@ -48,9 +60,12 @@ variable "lambda_runtime" {
 }
 
 variable "log_retention_days" {
-  description = "CloudWatch Logs retention for the function."
-  type        = number
-  default     = 30
+  description = <<-EOT
+    CloudWatch Logs retention for the function. Defaults to 365 days to match
+    the root module's default posture; the caller passes its own value.
+  EOT
+  type    = number
+  default = 365
 }
 
 variable "notify_severities" {

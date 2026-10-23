@@ -138,6 +138,21 @@ resource "aws_apigatewayv2_route" "health" {
   route_key = "GET /v1/health"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 
+  # Deliberately unauthenticated. An external uptime monitor cannot hold a
+  # Cognito credential, and a health check that requires authentication tells
+  # you the authorizer is up rather than whether the service is.
+  #
+  # The exposure is bounded by what the endpoint returns: a static
+  # status/service/version/environment payload and nothing else. That is
+  # enforced by a test, not by convention --
+  # tests/security/test_api_behaviour.py::
+  #   test_health_endpoint_does_not_disclose_configuration
+  # asserts the response names no table, region, user pool or key.
+  #
+  # Stage-level throttling applies to this route like any other, so it cannot
+  # be used as an unauthenticated amplification lever.
+  #
+  #checkov:skip=CKV_AWS_309:Intentionally public liveness probe. Returns a static payload naming only service, version and environment label -- not the table name, region or identity provider, asserted by tests/security/test_api_behaviour.py::test_health_endpoint_does_not_disclose_configuration. Recorded in assessments/final-security-assessment.md Accepted risks (AR-02).
   authorization_type = "NONE"
 }
 

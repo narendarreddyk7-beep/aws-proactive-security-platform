@@ -39,7 +39,7 @@ module "security_hub_triage" {
   # Reuse the parent's alarm topic and key so there is one place to subscribe
   # and one key policy to review.
   sns_topic_arn = aws_sns_topic.security_alarms.arn
-  kms_key_arn   = local.kms_key_arn
+  kms_key_arn   = local.policy_kms_key_arn
 
   log_retention_days = var.log_retention_days
   lambda_runtime     = var.lambda_runtime

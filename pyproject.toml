@@ -46,7 +46,11 @@ where = ["application"]
 line-length = 100
 target-version = "py312"
 src = ["application", "security-automation", "tests"]
-exclude = [".venv", "build", "dist", "reports", ".terraform"]
+# `*.md` is excluded deliberately. assessments/ and threat-model/ quote
+# pre-remediation source verbatim as finding evidence, and Ruff will happily
+# reformat a fenced ```python block -- which silently edits the evidence.
+# Evidence must match what was actually in the repository at v1-pre-review.
+exclude = [".venv", "build", "dist", "reports", ".terraform", "*.md"]
 
 [tool.ruff.lint]
 select = [

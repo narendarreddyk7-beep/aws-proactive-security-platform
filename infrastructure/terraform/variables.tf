@@ -300,12 +300,21 @@ variable "enable_deletion_protection" {
 
 variable "log_retention_days" {
   description = <<-EOT
-    CloudWatch Logs retention. Never leave this unset: "Never expire" is both
-    an unbounded cost and an unbounded data-retention liability for logs that
-    contain tenant identifiers.
+    CloudWatch Logs retention.
+
+    Defaults to 365 days, which is the posture a deployment should have unless
+    it deliberately chooses otherwise: long enough for an annual audit and a
+    retrospective investigation.
+
+    Note the trade-off in both directions. "Never expire" is an unbounded cost
+    AND an unbounded data-retention liability, because these logs contain
+    tenant and principal identifiers. A shorter window is a smaller liability
+    but a smaller investigation horizon. The dev environment deliberately
+    reduces this to 30 days (see infrastructure/environments/dev/terraform.tfvars)
+    on the basis that synthetic demo data is not worth retaining for a year.
   EOT
   type        = number
-  default     = 30
+  default     = 365
 
   validation {
     condition = contains(

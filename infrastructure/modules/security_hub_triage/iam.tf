@@ -81,29 +81,27 @@ data "aws_iam_policy_document" "triage" {
     }
   }
 
-  dynamic "statement" {
-    for_each = var.kms_key_arn != null ? [1] : []
+  statement {
+    sid    = "DecryptOwnConfigurationAndData"
+    effect = "Allow"
 
-    content {
-      sid    = "DecryptOwnConfigurationAndData"
-      effect = "Allow"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+    ]
 
-      actions = [
-        "kms:Decrypt",
-        "kms:GenerateDataKey",
+    resources = [var.kms_key_arn]
+
+    # Restricts the grant to decryption performed by these services on our
+    # behalf, so the credential cannot decrypt the key's other ciphertext.
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values = [
+        "lambda.${data.aws_region.current.name}.amazonaws.com",
+        "dynamodb.${data.aws_region.current.name}.amazonaws.com",
+        "sns.${data.aws_region.current.name}.amazonaws.com",
       ]
-
-      resources = [var.kms_key_arn]
-
-      condition {
-        test     = "StringEquals"
-        variable = "kms:ViaService"
-        values = [
-          "lambda.${data.aws_region.current.name}.amazonaws.com",
-          "dynamodb.${data.aws_region.current.name}.amazonaws.com",
-          "sns.${data.aws_region.current.name}.amazonaws.com",
-        ]
-      }
     }
   }
 

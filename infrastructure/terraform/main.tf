@@ -74,7 +74,37 @@ resource "aws_kms_alias" "main" {
   target_key_id = aws_kms_key.main[0].key_id
 }
 
+# CHECKOV EXCEPTIONS -- read before adding a skip of your own.
+#
+# CKV_AWS_109, CKV_AWS_111 and CKV_AWS_356 are identity-policy checks: they
+# look for write/permissions-management actions, and for `Resource: "*"` on
+# restrictable actions, without a constraining condition. They misfire on a
+# KMS *key policy* for two structural reasons:
+#
+#   1. In a key policy, `Resource: "*"` does not mean "every resource in the
+#      account". It means "the key this policy is attached to" -- that is the
+#      only legal value, because a key policy cannot reference another key.
+#      There is no narrower form to write.
+#
+#   2. The `AllowAccountAdministration` statement granting `kms:*` to the
+#      account root is mandatory. AWS requires a key policy to leave the
+#      account some administrative path; a key whose policy denies everyone is
+#      permanently unmanageable and its ciphertext is permanently unreadable.
+#      There is no break-glass for a KMS key.
+#
+# The two statements that ARE discretionary -- the CloudWatch Logs and
+# CloudWatch Alarms service grants -- both carry conditions
+# (`kms:EncryptionContext:aws:logs:arn` scoped to this deployment's log
+# groups, and `aws:SourceAccount` scoped to this account), so neither is an
+# unconstrained grant.
+#
+# Recorded as AR-01 in assessments/final-security-assessment.md.
+#
 data "aws_iam_policy_document" "kms_key_policy" {
+  #checkov:skip=CKV_AWS_109:KMS key policy. Resource "*" is the only legal form in a key policy and denotes the key itself; the account-root statement is mandatory for key manageability. See AR-01.
+  #checkov:skip=CKV_AWS_111:KMS key policy. As above; the discretionary service grants are condition-constrained. See AR-01.
+  #checkov:skip=CKV_AWS_356:KMS key policy. Resource "*" denotes the attached key, not every resource in the account. See AR-01.
+
   # The account root retains administrative control. Without this statement the
   # key becomes unmanageable -- there is no "break glass" for a KMS key whose
   # policy denies everyone.
