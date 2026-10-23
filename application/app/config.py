@@ -181,3 +181,4 @@ def get_settings() -> Settings:
     Tests call ``get_settings.cache_clear()`` between configurations.
     """
     return Settings()
+x = 1  # deliberately unformatted
