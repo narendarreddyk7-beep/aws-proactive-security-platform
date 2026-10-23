@@ -273,10 +273,26 @@ IAM checker), tests (unit/integration/security/regression), and reporting (my tr
    synthetic fixture and **fails if it passes**. A gate that has never rejected anything
    isn't a verified gate.
 
-**Honest status:** the workflow has never executed — no remote repository. So CodeQL has
-produced **no results at all**, and that's a real blind spot since it's the one tool with no
-local equivalent. Everything else is reproduced by `scripts/run_security_checks.sh`, which
-passes 17/17.
+**Honest status:** the pipeline now runs on GitHub, and **CodeQL has passed** — that blind
+spot is closed, which matters because it was the one tool with no local equivalent.
+
+What I'd volunteer here is what the first runs actually caught, because it's the better
+answer: the very first push produced **zero runs and no error**, because the triggers named
+`main` while the repository's default branch was `master`. That's the worst failure mode a
+security pipeline has, and it's the exact thing my `security-gate` job was written to
+prevent — it treats a *skipped* job as a failure because "did not run" must never read as
+"passed". I just never applied that reasoning one level up, to the triggers.
+
+Three further defects followed, all mine, none findable from my own environment: a
+dependency lock pinned for Python 3.13 while the Lambda runtime is 3.12, four Terraform
+module files that had never been formatted, and a `--input` vs `--input-dir` usage error in
+the very tool I'd written. Plus three genuine dev-tree advisories the SCA gate found, now
+formally accepted as AR-07 rather than silenced.
+
+Still unverified: a run where *every* stage is green, and branch protection making
+`security-gate` the required check so it blocks a merge rather than merely reporting.
+Everything except CodeQL is reproduced by `scripts/run_security_checks.sh`, which passes
+17/17.
 
 ---
 
@@ -378,7 +394,8 @@ that matter:
   environment (`releases.hashicorp.com` was outside the egress allow-list, and routing
   around a policy denial isn't an option). Checkov parsing all 10 files is partial evidence
   the HCL parses; it is **not** provider-schema validation, and I don't present it as such.
-- **L3 — the pipeline has never run.** CodeQL has produced no results.
+- **L3 — the pipeline now runs and CodeQL passes.** What is still unverified is a run
+  where *every* stage is green, and branch protection making the gate actually block.
 - **L5 — DynamoDB behaviour is asserted against `moto`.** Conditional-write semantics are
   verified against an emulator.
 - **L7 — author and reviewer are the same person.**
@@ -530,7 +547,7 @@ Signals genuine interest and tells you about the role:
 
 Say so, then reason out loud from what you do know. For this project specifically, the
 honest answers are already written down — nothing has been deployed, `terraform validate`
-has never run, CodeQL has produced no results, and the reviewer is the same person as the
-author. Knowing exactly where your evidence stops is a security engineering skill, and
+now runs and CodeQL passes but has not yet been fully green, and the reviewer is the same
+person as the author. Knowing exactly where your evidence stops is a security engineering skill, and
 claiming verification you don't have is the one thing that should actually disqualify
 someone from this job.

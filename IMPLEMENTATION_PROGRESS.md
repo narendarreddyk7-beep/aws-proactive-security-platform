@@ -201,7 +201,9 @@ scheduled re-scan, and a `security-gate` job that **treats a skipped security jo
 failure**. Includes a gate self-test asserting the IAM analyzer rejects a known-insecure
 fixture. YAML validated.
 
-**Never executed** — no remote repository, so CodeQL has produced no results (L3). Actions
+**Now executes.** Pushed 2026-10-23; after fixing a trigger that named `main` while the
+default branch was `master`, three runs have run and **CodeQL has passed** (L3). A run with
+every stage green is still unverified. Actions
 are pinned to tags rather than commit SHAs, because the SHAs could not be resolved in this
 environment and unverifiable hashes would look more trustworthy while being less so; the
 workflow header carries the exact `gh api` loop to convert them.
@@ -297,7 +299,7 @@ Carried forward, not hidden. Full detail:
 |---|---|---|
 | L1 | No AWS account used; nothing deployed | `docs/AWS_DEPLOYMENT.md`, README |
 | L2 | **Partly closed 2026-10-23.** `fmt` and `validate` were run on a separate machine (the binary is not installable here) — `validate` found a real defect, now fixed. Two deprecation warnings remain unmigrated; `plan`/`apply` still unrun (that is L1) | `docs/AWS_DEPLOYMENT.md` |
-| L3 | CI workflow never executed; CodeQL has produced no results; actions tag-pinned not SHA-pinned | `docs/SECURITY.md` §4 |
+| L3 | **Partly closed.** Workflow now runs and CodeQL passes; a fully green run and branch protection are still unverified. Actions tag-pinned not SHA-pinned | `docs/SECURITY.md` §4 |
 
 | L5 | DynamoDB behaviour asserted against `moto`, not the real service | `docs/TESTING.md` |
 | L6 | Security Hub never enabled; ASFF transformation unit-tested only | `docs/AWS_DEPLOYMENT.md` §7 |

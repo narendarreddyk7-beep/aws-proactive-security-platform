@@ -212,8 +212,8 @@ triggers themselves. Both branch names are now listed.
 As of that fix:
 
 - Job wiring and gating logic are **reviewed, not observed**.
-- **CodeQL has produced no results at all.** It is the one tool in the pipeline with no
-  local equivalent, so there is a genuine blind spot in semantic/taint analysis.
+- **CodeQL has now run and passed** (`security-extended`, ~1 minute). It was the one tool
+  with no local equivalent, so that blind spot is closed.
 - Every other stage *is* reproduced locally by `scripts/run_security_checks.sh` (15/15
   passing), which is why the gaps are limited to CodeQL and the Terraform steps.
 
