@@ -4,9 +4,11 @@ Real command output demonstrating that each confirmed finding was **(a)** presen
 demonstrable in the pre-review code, and **(b)** fixed afterwards.
 
 Every figure on this page was produced by a command run in this environment on
-**2026-10-23**. Nothing here is estimated or illustrative. The raw captured output is kept
-at [`../reports/regression-v1-pre-review.txt`](../reports/regression-v1-pre-review.txt)
-(346 KB, 84 failure blocks).
+**2026-10-23**. Nothing here is estimated or illustrative. The raw captured output (346 KB, 84 failure blocks) is written to
+`reports/regression-v1-pre-review.txt`, which is **not committed** — `reports/` holds
+generated tool output so that it can never masquerade as reviewed evidence. Regenerate it
+with the commands in [`../reports/README.md`](../reports/README.md); the quoted excerpts
+below are verbatim from the run of 2026-10-23.
 
 ---
 
@@ -184,7 +186,8 @@ Each finding, the guarding test, and its verified status on each side.
 ## 4. Current verification run — full output summary
 
 All commands below were run on 2026-10-23 at the repository root.
-Full transcript: [`../reports/local-security-run.txt`](../reports/local-security-run.txt).
+Full transcript: `reports/local-security-run.txt` (generated, not committed — rerun
+`./scripts/run_security_checks.sh`).
 
 ### 4.1 Test suite
 
@@ -232,7 +235,7 @@ TOTAL    2058 stmts   183 miss   668 branch   83 brpart   89% cover
 $ ruff check . --output-format=concise
 All checks passed!
 $ ruff format --check .
-65 files already formatted
+64 files already formatted
 ```
 
 Ruff is configured with `S` (bandit-equivalent) and `ANN` (type annotation) rule sets —

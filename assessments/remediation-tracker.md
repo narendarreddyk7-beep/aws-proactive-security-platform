@@ -117,7 +117,7 @@ command and its real result.
 | Full suite | `pytest -q` | **584 passed, 11 skipped** | 2026-10-23 |
 | Coverage | `pytest --cov` | **89%** (2,058 statements) | 2026-10-23 |
 | Lint | `ruff check .` | All checks passed | 2026-10-23 |
-| Format | `ruff format --check .` | 65 files already formatted | 2026-10-23 |
+| Format | `ruff format --check .` | 64 files already formatted | 2026-10-23 |
 | SAST | `bandit -c pyproject.toml -ll` | 0 at medium+; 0 `nosec` | 2026-10-23 |
 | SCA | `pip-audit` | 21 packages, **0 vulnerabilities** | 2026-10-23 |
 | IaC scan | `checkov -d infrastructure/` | 134 passed, **0 failed**, 12 justified skips | 2026-10-23 |
