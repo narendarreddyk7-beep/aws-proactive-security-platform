@@ -1,0 +1,95 @@
+# ---------------------------------------------------------------------------
+# Secrets and credentials — never commit these.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials
+.aws/
+secrets.json
+*_secret*
+*.tfvars
+!example.tfvars
+!*.auto.tfvars.example
+
+# ---------------------------------------------------------------------------
+# Terraform
+# ---------------------------------------------------------------------------
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+tfplan
+tfplan.*
+*.tfplan
+.terragrunt-cache/
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+venv/
+.venv/
+env/
+ENV/
+.python-version
+
+# ---------------------------------------------------------------------------
+# Test / coverage / tooling caches
+# ---------------------------------------------------------------------------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.external_modules/
+
+# ---------------------------------------------------------------------------
+# Build artifacts
+# ---------------------------------------------------------------------------
+*.zip
+!infrastructure/terraform/*.zip.example
+lambda_build/
+dist-lambda/
+
+# ---------------------------------------------------------------------------
+# Generated security reports.
+# `reports/` holds tool output. Committed evidence lives in `assessments/`
+# so that generated artifacts never masquerade as reviewed evidence.
+# ---------------------------------------------------------------------------
+reports/*
+!reports/.gitkeep
+!reports/README.md
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
