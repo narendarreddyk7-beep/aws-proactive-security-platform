@@ -270,6 +270,45 @@ def recording_table(dynamodb_table: Any) -> Any:
     return RecordingTable(dynamodb_table)
 
 
+@pytest.fixture
+def membership_table(dynamodb_table: Any) -> Any:
+    """An in-process membership table, separate from the ticket table.
+
+    Memberships live in their own table so the execution role can hold
+    ``GetItem`` on them and no write action at all -- see
+    ``infrastructure/terraform/policies/lambda-execution.json``. Creating a
+    genuinely separate table here (rather than another partition prefix) is
+    what lets a test assert that the application never writes to it.
+
+    Depends on ``dynamodb_table`` only to inherit its ``mock_aws`` context.
+    """
+    import boto3
+
+    resource = boto3.resource("dynamodb", region_name="us-east-1")
+    table = resource.create_table(
+        TableName="support-platform-test-memberships",
+        BillingMode="PAY_PER_REQUEST",
+        KeySchema=[
+            {"AttributeName": "PK", "KeyType": "HASH"},
+            {"AttributeName": "SK", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "PK", "AttributeType": "S"},
+            {"AttributeName": "SK", "AttributeType": "S"},
+        ],
+    )
+    table.wait_until_exists()
+    return table
+
+
+@pytest.fixture
+def recording_membership_table(membership_table: Any) -> Any:
+    """The membership table wrapped so tests can assert no write ever happens."""
+    from tests.fixtures.recording_table import RecordingTable
+
+    return RecordingTable(membership_table)
+
+
 # ---------------------------------------------------------------------------
 # Log capture
 #

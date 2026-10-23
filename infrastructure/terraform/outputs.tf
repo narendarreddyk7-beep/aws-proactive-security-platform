@@ -54,6 +54,16 @@ output "dynamodb_table_arn" {
   value       = aws_dynamodb_table.main.arn
 }
 
+output "membership_table_name" {
+  description = "Name of the membership table. Read-only to the API; populated by the out-of-band provisioning process."
+  value       = aws_dynamodb_table.memberships.name
+}
+
+output "membership_table_arn" {
+  description = "ARN of the membership table (the authorization source of truth)."
+  value       = aws_dynamodb_table.memberships.arn
+}
+
 output "lambda_function_name" {
   description = "Name of the API function."
   value       = aws_lambda_function.api.function_name

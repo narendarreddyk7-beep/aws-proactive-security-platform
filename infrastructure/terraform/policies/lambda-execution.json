@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "TicketAndMembershipDataAccess",
+      "Sid": "TicketDataReadWrite",
       "Effect": "Allow",
       "Action": [
         "dynamodb:GetItem",
@@ -12,6 +12,34 @@
       "Resource": [
         "${table_arn}",
         "${table_arn}/index/GSI1"
+      ]
+    },
+    {
+      "Sid": "MembershipReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem"
+      ],
+      "Resource": "${membership_table_arn}"
+    },
+    {
+      "Sid": "DenyAllWritesToAuthorizationSourceOfTruth",
+      "Effect": "Deny",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:TransactWriteItems",
+        "dynamodb:CreateTable",
+        "dynamodb:UpdateTable",
+        "dynamodb:DeleteTable",
+        "dynamodb:RestoreTableFromBackup",
+        "dynamodb:RestoreTableToPointInTime"
+      ],
+      "Resource": [
+        "${membership_table_arn}",
+        "${membership_table_arn}/*"
       ]
     },
     {
@@ -42,7 +70,7 @@
       }
     },
     {
-      "Sid": "DenyTableWideReadsAndDestructiveOperations",
+      "Sid": "DenyScanAndDestructiveTableOperations",
       "Effect": "Deny",
       "Action": [
         "dynamodb:Scan",

@@ -15,16 +15,33 @@ from app.config import get_settings
 
 
 @lru_cache
-def get_table() -> Any:
-    """Return the DynamoDB ``Table`` resource for the configured table.
+def _resource() -> Any:
+    """Return the shared DynamoDB service resource.
 
-    Cached: creating a boto3 resource performs credential resolution, which is
-    expensive to repeat on every Lambda invocation.
+    Cached: constructing a boto3 resource performs credential resolution,
+    which is expensive to repeat on every Lambda invocation.
     """
     settings = get_settings()
-    resource = boto3.resource(
+    return boto3.resource(
         "dynamodb",
         region_name=settings.aws_region,
         endpoint_url=settings.dynamodb_endpoint_url,
     )
-    return resource.Table(settings.table_name)
+
+
+@lru_cache
+def get_table() -> Any:
+    """Return the ``Table`` resource for the ticket table."""
+    return _resource().Table(get_settings().table_name)
+
+
+@lru_cache
+def get_membership_table() -> Any:
+    """Return the ``Table`` resource for the membership table.
+
+    A separate table, not a separate partition prefix. The execution role is
+    granted ``GetItem`` on this table and no write action at all, which is a
+    boundary IAM can actually enforce -- see the comment on
+    ``Settings.membership_table_name``.
+    """
+    return _resource().Table(get_settings().membership_table_name)

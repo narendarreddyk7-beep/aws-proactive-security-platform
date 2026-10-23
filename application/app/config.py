@@ -63,6 +63,17 @@ class Settings(BaseSettings):
 
     # --- Storage -----------------------------------------------------------
     table_name: str = "support-platform-dev"
+    #: Membership records live in their OWN table so the execution role can
+    #: hold `GetItem` on them and nothing else.
+    #:
+    #: Membership is the authoritative source of a caller's role, so write
+    #: access to it is tenant takeover. While it shared a partition space with
+    #: tickets, IAM could not express "read memberships, write only tickets":
+    #: `dynamodb:LeadingKeys` constrains the *partition* key, and there is no
+    #: condition key for a sort-key prefix. A second table makes the boundary
+    #: expressible in IAM instead of resting on the application never writing
+    #: a `USER#` key (threat T-06, accepted risk AR-04).
+    membership_table_name: str = "support-platform-dev-memberships"
     aws_region: str = "us-east-1"
     #: Only set for local DynamoDB Local / moto. Must stay unset in AWS.
     dynamodb_endpoint_url: str | None = None

@@ -25,9 +25,41 @@
       ]
     },
     {
+      "Sid": "BoundaryAllowMembershipReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem"
+      ],
+      "Resource": "${membership_table_arn}"
+    },
+    {
+      "Sid": "BoundaryDenyMembershipWrites",
+      "Effect": "Deny",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:TransactWriteItems"
+      ],
+      "Resource": [
+        "${membership_table_arn}",
+        "${membership_table_arn}/*"
+      ]
+    },
+    {
       "Sid": "BoundaryDenyEverythingOfConsequence",
       "Effect": "Deny",
       "Action": [
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminSetUserPassword",
+        "cognito-idp:AdminUpdateUserAttributes",
+        "dynamodb:DeleteItem",
+        "dynamodb:DeleteTable",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem",
+        "ec2:CreateNetworkInterface",
+        "ec2:RunInstances",
         "iam:AttachRolePolicy",
         "iam:CreateAccessKey",
         "iam:CreatePolicy",
@@ -37,26 +69,18 @@
         "iam:PassRole",
         "iam:PutRolePolicy",
         "iam:UpdateAssumeRolePolicy",
-        "sts:AssumeRole",
-        "sts:GetFederationToken",
-        "dynamodb:Scan",
-        "dynamodb:DeleteTable",
-        "dynamodb:DeleteItem",
-        "cognito-idp:AdminUpdateUserAttributes",
-        "cognito-idp:AdminCreateUser",
-        "cognito-idp:AdminSetUserPassword",
-        "lambda:UpdateFunctionCode",
-        "lambda:UpdateFunctionConfiguration",
         "lambda:AddPermission",
         "lambda:InvokeFunction",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "s3:GetObject",
+        "s3:PutObject",
         "secretsmanager:GetSecretValue",
         "ssm:GetParameter",
         "ssm:GetParameters",
         "ssm:GetParametersByPath",
-        "s3:GetObject",
-        "s3:PutObject",
-        "ec2:CreateNetworkInterface",
-        "ec2:RunInstances"
+        "sts:AssumeRole",
+        "sts:GetFederationToken"
       ],
       "Resource": "*"
     }

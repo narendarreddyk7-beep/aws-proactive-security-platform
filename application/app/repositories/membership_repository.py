@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from app.models.membership import Membership
-from app.repositories.dynamodb import get_table
+from app.repositories.dynamodb import get_membership_table
 from app.repositories.keys import membership_sk, user_pk
 
 
@@ -24,10 +24,17 @@ class MembershipStore(Protocol):
 
 
 class DynamoDbMembershipRepository:
-    """Membership lookup against the single DynamoDB table."""
+    """Membership lookup against the dedicated membership table.
+
+    Read-only by construction: this class exposes no write method, and the
+    execution role is granted ``GetItem`` on this table and nothing else. A
+    membership is created by an out-of-band administrative process, so there is
+    no code path -- and now no *permission* -- by which a support-API request
+    can modify its own tenancy or role.
+    """
 
     def __init__(self, table: Any | None = None) -> None:
-        self._table = table if table is not None else get_table()
+        self._table = table if table is not None else get_membership_table()
 
     def get_membership(self, user_id: str, organization_id: str) -> Membership | None:
         """Fetch one membership record by its exact composite key."""

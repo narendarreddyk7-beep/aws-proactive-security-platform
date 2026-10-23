@@ -40,6 +40,21 @@
 #    shut even if someone attaches a broad policy to this role later.
 # 5. Cap the role with a permissions boundary, so a change-management failure
 #    still cannot widen it.
+# 6. Put the authorization source of truth in its own table, so "read
+#    memberships, write only tickets" is expressible in IAM at all.
+#
+# WHY #6 REQUIRED A SECOND TABLE
+# ------------------------------
+# The function needs `PutItem` to create tickets. While memberships shared the
+# ticket table, that grant was necessarily table-wide: `dynamodb:LeadingKeys`
+# constrains only the PARTITION key, and IAM has no condition key for a
+# sort-key prefix. So nothing in IAM stopped a membership write -- only the
+# application never constructing a `USER#` key did, which is a compensating
+# control, not a boundary.
+#
+# With a separate table the boundary is real: `GetItem` on the membership
+# table, no write action, plus an explicit Deny on every write to it. This
+# resolves accepted risk AR-04 / threat T-06 / register row R-06.
 # ---------------------------------------------------------------------------
 
 locals {
@@ -53,8 +68,9 @@ locals {
   )
 
   policy_template_vars = {
-    table_arn     = aws_dynamodb_table.main.arn
-    log_group_arn = aws_cloudwatch_log_group.lambda.arn
+    table_arn            = aws_dynamodb_table.main.arn
+    membership_table_arn = aws_dynamodb_table.memberships.arn
+    log_group_arn        = aws_cloudwatch_log_group.lambda.arn
     kms_key_arn   = local.policy_kms_key_arn
     region        = local.region
     account_id    = local.account_id

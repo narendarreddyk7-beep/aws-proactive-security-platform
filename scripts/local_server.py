@@ -60,6 +60,7 @@ DEMO_MEMBERSHIPS: list[dict[str, str]] = [
 ]
 
 TABLE_NAME = "support-platform-local"
+MEMBERSHIP_TABLE_NAME = "support-platform-local-memberships"
 
 
 def _configure_environment(table_name: str) -> None:
@@ -67,6 +68,7 @@ def _configure_environment(table_name: str) -> None:
     os.environ["APP_ENVIRONMENT"] = "local"
     os.environ["APP_IDENTITY_SOURCE"] = "local_test"
     os.environ["APP_TABLE_NAME"] = table_name
+    os.environ["APP_MEMBERSHIP_TABLE_NAME"] = f"{table_name}-memberships"
     os.environ["APP_LOG_LEVEL"] = os.environ.get("APP_LOG_LEVEL", "INFO")
     os.environ["APP_AWS_REGION"] = "us-east-1"
     # moto requires credentials to be *present* but never validates them, so
@@ -113,6 +115,23 @@ def _create_table(table_name: str) -> None:
     )
     client.get_waiter("table_exists").wait(TableName=table_name)
 
+    # Memberships live in their OWN table so the execution role can hold
+    # GetItem on them and no write action at all. Mirrors
+    # infrastructure/terraform/dynamodb.tf.
+    client.create_table(
+        TableName=f"{table_name}-memberships",
+        BillingMode="PAY_PER_REQUEST",
+        KeySchema=[
+            {"AttributeName": "PK", "KeyType": "HASH"},
+            {"AttributeName": "SK", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "PK", "AttributeType": "S"},
+            {"AttributeName": "SK", "AttributeType": "S"},
+        ],
+    )
+    client.get_waiter("table_exists").wait(TableName=f"{table_name}-memberships")
+
 
 def _seed_memberships(table_name: str) -> None:
     """Write the server-side membership records the authorization layer reads.
@@ -126,7 +145,7 @@ def _seed_memberships(table_name: str) -> None:
 
     from app.repositories.keys import membership_sk, user_pk
 
-    table = boto3.resource("dynamodb", region_name="us-east-1").Table(table_name)
+    table = boto3.resource("dynamodb", region_name="us-east-1").Table(f"{table_name}-memberships")
     for record in DEMO_MEMBERSHIPS:
         table.put_item(
             Item={
@@ -146,7 +165,8 @@ def _print_banner(host: str, port: int) -> None:
     print("=" * 78, flush=True)
     print(f"  URL          http://{host}:{port}", flush=True)
     print(f"  Docs         http://{host}:{port}/docs", flush=True)
-    print("  Storage      in-process moto (nothing persists, no AWS account used)", flush=True)
+    print("  Storage      in-process moto, TWO tables (tickets + memberships)", flush=True)
+    print("               nothing persists; no AWS account used", flush=True)
     print("", flush=True)
     print("  IDENTITY IS READ FROM HEADERS. This is the F-012 local adapter and", flush=True)
     print("  cannot load unless APP_ENVIRONMENT=local. Not a production path.", flush=True)
@@ -202,7 +222,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check:
         print(
-            f"OK: app imported, table '{args.table}' created, "
+            f"OK: app imported, tables '{args.table}' and "
+            f"'{args.table}-memberships' created, "
             f"{len(DEMO_MEMBERSHIPS)} memberships seeded."
         )
         return 0

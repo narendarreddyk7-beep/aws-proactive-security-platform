@@ -1,5 +1,8 @@
 # ---------------------------------------------------------------------------
-# DynamoDB: single table, tenant-partitioned.
+# DynamoDB: two tables.
+#
+#   aws_dynamodb_table.main         tickets      (read + write)
+#   aws_dynamodb_table.memberships  memberships  (READ ONLY to the function)
 #
 # Key schema (mirrored in application/app/repositories/keys.py and asserted by
 # tests/integration/test_dynamodb_repository.py):
@@ -8,6 +11,20 @@
 #   Membership  PK = USER#{user_id}             SK = MEMBERSHIP#{organization_id}
 #
 #   GSI1        GSI1PK = TENANT#{org}#USER#{user}   GSI1SK = CREATED#{ts}#{id}
+#
+# WHY MEMBERSHIPS ARE A SEPARATE TABLE
+# The membership record is the authoritative source of a caller's role, so
+# write access to it is tenant takeover. While memberships shared a table with
+# tickets, IAM could not express "read memberships, write only tickets": the
+# function needs `PutItem` for tickets, `dynamodb:LeadingKeys` constrains only
+# the PARTITION key, and there is no condition key for a sort-key prefix. So
+# the `PutItem` grant was necessarily table-wide, and the only thing stopping a
+# membership write was the application never constructing a `USER#` key.
+#
+# That was a compensating control, not a boundary. Splitting the table makes it
+# a boundary IAM enforces: `GetItem` on this table, no write action at all, and
+# an explicit Deny on every write to it. This resolves accepted risk AR-04 /
+# threat T-06 / register row R-06.
 #
 # WHY THE PARTITION KEY CARRIES THE TENANT
 # Tenant isolation becomes a property of the access pattern rather than of
@@ -112,12 +129,69 @@ resource "aws_dynamodb_table" "main" {
 # never be managed as infrastructure state.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Membership table. Authorization input, read-only to the application.
+# ---------------------------------------------------------------------------
+
+resource "aws_dynamodb_table" "memberships" {
+  name         = "${local.name_prefix}-memberships"
+  billing_mode = "PAY_PER_REQUEST"
+
+  hash_key  = "PK"
+  range_key = "SK"
+
+  attribute {
+    name = "PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "SK"
+    type = "S"
+  }
+
+  # No GSI. Every read is an exact (PK, SK) GetItem for one user's membership
+  # of one organization. Adding an index would create a second access path to
+  # the authorization source of truth for no access pattern that exists.
+
+  # PITR matters more here than on the ticket table: a tampered or deleted
+  # membership is an authorization failure, and recovering to a known-good
+  # point is how you establish what the role *was* at the time of an incident.
+  point_in_time_recovery {
+    enabled = var.enable_point_in_time_recovery
+  }
+
+  server_side_encryption {
+    enabled     = var.create_kms_key
+    kms_key_arn = local.kms_key_arn
+  }
+
+  deletion_protection_enabled = var.enable_deletion_protection
+
+  # Streams off: nothing consumes them, and a stream would be a 24-hour copy of
+  # every authorization change in a second place with its own access path.
+  stream_enabled = false
+
+  tags = {
+    Name = "${local.name_prefix}-memberships"
+    Role = "authorization-source-of-truth"
+  }
+
+  lifecycle {
+    prevent_destroy = false
+
+    ignore_changes = [
+      tags["LastReviewed"],
+    ]
+  }
+}
+
 resource "aws_dynamodb_table_item" "demo_memberships" {
   for_each = var.environment == "prod" ? {} : local.demo_memberships
 
-  table_name = aws_dynamodb_table.main.name
-  hash_key   = aws_dynamodb_table.main.hash_key
-  range_key  = aws_dynamodb_table.main.range_key
+  table_name = aws_dynamodb_table.memberships.name
+  hash_key   = aws_dynamodb_table.memberships.hash_key
+  range_key  = aws_dynamodb_table.memberships.range_key
 
   item = jsonencode({
     PK          = { S = "USER#${each.value.user_id}" }

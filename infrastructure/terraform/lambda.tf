@@ -69,6 +69,7 @@ resource "aws_lambda_function" "api" {
 
       # --- Storage ------------------------------------------------------
       APP_TABLE_NAME = aws_dynamodb_table.main.name
+      APP_MEMBERSHIP_TABLE_NAME = aws_dynamodb_table.memberships.name
       APP_AWS_REGION = local.region
 
       # --- Behaviour ----------------------------------------------------
