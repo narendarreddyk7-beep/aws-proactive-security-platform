@@ -243,6 +243,52 @@ Recorded as limitations **L2** and **L3**.
 
 ---
 
+### 4.1 Gate self-test (PR #1, run 39990888962)
+
+Branch protection on `master` requires the `Security gate` check, with
+`enforce_admins: true` (the repository owner is not exempt) and
+`strict: true` (the branch must be current before merging).
+
+The control was verified by deliberately breaking it, not by reading its
+configuration. A single unformatted line was committed to
+`application/app/config.py` on a branch and opened as a pull request.
+
+| Expected | Observed |
+|---|---|
+| The detector fires | `ruff format --check` exit 1 at `config.py:184` |
+| The gate fails | `Error: stage 'code-quality' did not pass (result: failure)` |
+| The gate evaluates stages individually | 6 stages logged `ok`, 1 logged the failure |
+| Unrelated stages unaffected | CodeQL, Bandit, pip-audit, Checkov and all 5 test jobs green |
+| The merge is prevented | `mergeable: MERGEABLE`, `mergeStateStatus: BLOCKED` |
+
+The last row is the one that matters: git reported the merge was
+mechanically clean, and policy refused it anyway. Nothing about the code
+blocked the merge — the control did.
+
+The branch was closed without merging; `master` stayed green throughout.
+An enforcement control that has never been observed rejecting anything is
+an untested control, so this result, rather than the protection settings,
+is the evidence for L3.
+
+### 4.2 A defect the local runner could not have found
+
+Running `scripts/run_security_checks.sh` in a freshly built virtualenv on
+macOS exposed a bug in the runner itself: under `set -u`, bash 3.2 (which
+macOS ships) treats an **empty** array as unset when `${arr[@]}` is
+expanded. `FAILED_STAGES` is empty on exactly one path -- the all-pass path
+-- so the script aborted with `unbound variable` and exited 1 whenever every
+stage passed. CI runs bash 5 on Ubuntu and never reproduced it.
+
+The fix uses `${arr[@]+"${arr[@]}"}` and counts stages as it prints them.
+The point worth keeping is the shape of the bug: the only untested path was
+the success path, and a gate that rejects only clean trees fails in the
+direction that looks like diligence.
+
+**Residual.** Workflow actions are pinned by tag (`actions/checkout@v5`),
+not by commit SHA. A tag is mutable by whoever owns the action, so a
+re-pointed tag would execute in CI under this workflow's permissions.
+Tracked as an open item.
+
 ## 5. Reporting a vulnerability
 
 This is a portfolio project operating on synthetic data, with no production deployment and
