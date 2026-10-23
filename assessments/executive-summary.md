@@ -58,7 +58,7 @@ the broken code. That is the difference between "we fixed it" and "we believe we
 | Full test suite | **603 passed**, 13 skipped (need a live AWS account) |
 | Code coverage | 89% |
 | Automated security scanners (5 tools) | 0 findings at actionable severity |
-| Full security pipeline | **16 of 16 stages pass** |
+| Full security pipeline | **17 of 17 stages pass** |
 
 Isolation between customers is now **structural rather than procedural**: the database
 query is physically scoped to the calling customer, the cloud permission to read across all

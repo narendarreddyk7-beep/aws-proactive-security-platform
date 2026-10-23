@@ -530,7 +530,7 @@ cross-run status tracking (`new` / `open` / `overdue` / `newly resolved`).
 ```
 
 ```
-Passed: 16   Failed: 0
+Passed: 17   Failed: 0
 Reports: reports/
 ```
 

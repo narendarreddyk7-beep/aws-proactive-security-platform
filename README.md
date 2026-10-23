@@ -4,7 +4,7 @@ A multi-tenant customer support API on AWS, built as an **application security e
 exercise**: designed, threat-modelled, deliberately written without security review,
 reviewed, remediated, and verified — with the evidence for each step kept in the repository.
 
-[![Security CI](https://img.shields.io/badge/security--ci-16%20gated%20checks-informational)](.github/workflows/security-ci.yml)
+[![Security CI](https://img.shields.io/badge/security--ci-17%20gated%20checks-informational)](.github/workflows/security-ci.yml)
 [![Tests](https://img.shields.io/badge/tests-603%20passed%20%7C%2013%20skipped-success)](docs/TESTING.md)
 [![Findings](https://img.shields.io/badge/findings-15%20confirmed%20%7C%2015%20remediated-success)](assessments/security-findings.md)
 [![Coverage](https://img.shields.io/badge/coverage-89%25-success)](docs/TESTING.md)
@@ -340,13 +340,13 @@ Verified on 2026-10-23. Each figure is reproducible with the command shown.
 | Regression tests | **141**, each demonstrated to fail against `v1-pre-review` | `pytest -m regression -q` |
 | Failures against pre-review code | **93** (92 passed) | see [Testing](#testing) |
 | Coverage | **89%** (2,064 statements) | `pytest --cov` |
-| Confirmed findings remediated | **16 of 16** | [`remediation-tracker.md`](assessments/remediation-tracker.md) |
+| Confirmed findings remediated | **17 of 17** | [`remediation-tracker.md`](assessments/remediation-tracker.md) |
 | Lint | **clean** (incl. bandit-equivalent `S` rules) | `ruff check . && ruff format --check .` |
 | SAST | **0** at medium+; **0** `nosec` suppressions | `bandit -c pyproject.toml -ll` |
 | SCA | 21 packages, **0 vulnerabilities** | `pip-audit` |
 | IaC scan | **137 passed, 0 failed**, 12 justified skips | `checkov -d infrastructure/` |
 | IAM policy analysis | 1 INFO, **0 blocking** | `iam_policy_checker.py` |
-| Local pipeline | **16 of 16 stages pass** | `./scripts/run_security_checks.sh` |
+| Local pipeline | **17 of 17 stages pass** | `./scripts/run_security_checks.sh` |
 | STRIDE threats | 16, across 10 data flows and 7 trust boundaries | [`threat-model.md`](threat-model/threat-model.md) |
 | Security requirements | 91 (76 verified / 11 AWS-gated / 4 open) | [`security-requirements.md`](threat-model/security-requirements.md) |
 | Residual risk | **0 critical, 0 high**, 2 medium, 14 low | [`final-security-assessment.md`](assessments/final-security-assessment.md) |
@@ -366,7 +366,7 @@ The project's assurance stops here, and saying so precisely is part of the work.
 |---|---|---|
 | **L1** | **Nothing deployed to AWS.** No account used | Live JWT rejection, real IAM enforcement, Cognito flows and alarm firing are all **unverified**. 13 tests skip for exactly this reason |
 | **L2** | **Partly closed.** `terraform fmt` and `validate` ran on a separate machine (Terraform 1.17.0, AWS provider 6.70.0) on 2026-10-23 — the binary is not installable in the build environment. `validate` **found a real defect** (a `templatefile` vars map that had drifted), now fixed, and the configuration is canonically formatted. Two `key_schema` deprecation warnings remain unmigrated. `plan`/`apply` still unrun — that is L1 |
-| **L3** | **CI workflow never executed.** No remote repository | **CodeQL has produced no results at all** — the one tool with no local equivalent. Everything else is mirrored by a local runner passing 16/16. Actions are pinned to tags, not commit SHAs |
+| **L3** | **CI workflow never executed.** No remote repository | **CodeQL has produced no results at all** — the one tool with no local equivalent. Everything else is mirrored by a local runner passing 17/17. Actions are pinned to tags, not commit SHAs |
 | **L5** | DynamoDB behaviour asserted against **`moto`** | Conditional-write semantics and GSI consistency are verified against an emulator, not the real service |
 | **L6** | **Security Hub never enabled** | The ASFF transformation is unit-tested with 38 synthetic events; end-to-end delivery is unverified. Off by default |
 | **L7** | **Author and reviewer are the same engineer** | The weakest form of review. An independent reviewer would find things this one did not |

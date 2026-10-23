@@ -225,7 +225,7 @@ a 6-option containment framework), `cloud-security-finding-response.md`,
 
 ```
 $ ./scripts/run_security_checks.sh
-Passed: 16   Failed: 0
+Passed: 17   Failed: 0
 ```
 
 Three genuine failures were found and **fixed** during this pass rather than written off:

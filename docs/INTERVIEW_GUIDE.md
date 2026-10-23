@@ -276,7 +276,7 @@ IAM checker), tests (unit/integration/security/regression), and reporting (my tr
 **Honest status:** the workflow has never executed — no remote repository. So CodeQL has
 produced **no results at all**, and that's a real blind spot since it's the one tool with no
 local equivalent. Everything else is reproduced by `scripts/run_security_checks.sh`, which
-passes 16/16.
+passes 17/17.
 
 ---
 

@@ -107,7 +107,7 @@ Every figure available for use, with its source. **Do not use a number that is n
 | Figure | Value | Source |
 |---|---|---|
 | Confirmed findings | **15** (1 crit / 4 high / 7 med / 3 low) | `security-findings.md` |
-| Findings remediated and retested | **16 of 16** | `remediation-tracker.md` |
+| Findings remediated and retested | **17 of 17** | `remediation-tracker.md` |
 | Observations (not counted as findings) | 7 | `code-review-checklist.md` §5 |
 | Tests passing | **584** | `pytest -q` |
 | Tests skipped (AWS-gated) | 13 | same |
@@ -132,7 +132,7 @@ Every figure available for use, with its source. **Do not use a number that is n
 | Bandit result | 0 at medium+; **0 `nosec`** | `bandit -ll` |
 | pip-audit result | 21 packages, **0 vulnerabilities** | `pip-audit` |
 | IAM analyzer on deployed policies | 1 INFO, **0 blocking** | `iam_policy_checker.py` |
-| Local pipeline stages passing | **16 of 16** | `run_security_checks.sh` |
+| Local pipeline stages passing | **17 of 17** | `run_security_checks.sh` |
 | Terraform files | 10 + 1 module | `ls infrastructure/terraform/*.tf` |
 | CloudWatch alarms / metric filters | 8 / 5 | `monitoring.tf` |
 | Remediation diff | 14 files, +1,744 / −312 | `git diff v1-pre-review v2-remediated` |
@@ -148,7 +148,7 @@ Every figure available for use, with its source. **Do not use a number that is n
 |---|---|
 | "Deployed to AWS" / "in production" | **Nothing was deployed.** No AWS account was used (L1) |
 | "Validated infrastructure with Terraform" | `terraform fmt`/`validate`/`plan` were **never run** (L2). Say "statically analysed with Checkov and a custom reference linter" |
-| "CI/CD pipeline running in production" | The workflow has **never executed** (L3). Say "implemented", and that it is mirrored by a local runner passing 16/16 |
+| "CI/CD pipeline running in production" | The workflow has **never executed** (L3). Say "implemented", and that it is mirrored by a local runner passing 17/17 |
 | "CodeQL analysis identified…" | CodeQL has produced **no results at all** (L3) |
 | "Reduced vulnerabilities by N%" | Invented. The honest figure is 15 findings identified and remediated |
 | "Improved security posture by N%" | Not measurable, and an interviewer will ask how it was measured |

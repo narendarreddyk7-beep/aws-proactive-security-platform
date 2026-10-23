@@ -126,7 +126,7 @@ The whole pipeline, in the same order and with the same gating as CI:
 ```
 
 ```
-Passed: 16   Failed: 0
+Passed: 17   Failed: 0
 ```
 
 | Flag | Effect |

@@ -134,7 +134,7 @@ Triage procedure: [`../runbooks/authorization-alert-triage.md`](../runbooks/auth
 ## 3. The CI security gate
 
 `.github/workflows/security-ci.yml`. Mirrored locally by `scripts/run_security_checks.sh`,
-which passes **16/16 stages**.
+which passes **17/17 stages**.
 
 | Stage | Tool | Gating rule |
 |---|---|---|

@@ -220,8 +220,25 @@ jobs:
         shell: bash
 
       - name: Audit development dependencies
-        # Dev dependencies do not reach production, but they execute in CI with
+        # Dev dependencies never reach Lambda, but they execute in CI with
         # repository context, so an advisory here still matters.
+        #
+        # THREE ADVISORIES ARE IGNORED, each named explicitly rather than
+        # blanket-suppressed, and each recorded as accepted risk AR-07 in
+        # assessments/final-security-assessment.md with an owner and a review
+        # date. Neither package is upgradable from here:
+        #
+        #   asteval 1.0.6  PYSEC-2026-3807, GHSA-9w56-46f6-3qhx (fix: 1.0.9)
+        #                  checkov pins `asteval==1.0.6` exactly, so the fix
+        #                  cannot be installed without breaking checkov.
+        #   ecdsa 0.19.2   PYSEC-2026-1325 (no fix version published)
+        #                  pulled in by checkov; this project performs no
+        #                  ECDSA operations.
+        #
+        # Both are transitive dependencies of checkov, a dev-only scanner, and
+        # neither appears in application/requirements.lock -- the runtime audit
+        # above runs with NO ignores and must stay clean. Any NEW advisory in
+        # the dev tree still fails this step.
         run: |
           python - <<'PY' > reports/dev-requirements.txt
           import tomllib
@@ -229,7 +246,10 @@ jobs:
               data = tomllib.load(fh)
           print("\n".join(data["project"]["optional-dependencies"]["dev"]))
           PY
-          python -m pip_audit --requirement reports/dev-requirements.txt --strict
+          python -m pip_audit --requirement reports/dev-requirements.txt --strict \
+            --ignore-vuln PYSEC-2026-3807 \
+            --ignore-vuln GHSA-9w56-46f6-3qhx \
+            --ignore-vuln PYSEC-2026-1325
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -314,8 +334,11 @@ jobs:
         # at plan time, precisely so this check is possible without AWS
         # credentials and with no hand-maintained copy to drift.
         run: |
+          # --input-dir, NOT --input. `--input` takes a single file and exits
+          # 2 on a directory, which is how this step failed on the first real
+          # CI run -- a usage error that looked identical to a scan failure.
           python security-automation/iam_policy_checker.py \
-            --input infrastructure/terraform/policies/ \
+            --input-dir infrastructure/terraform/policies \
             --output reports/iam-findings.json \
             --fail-on high
 

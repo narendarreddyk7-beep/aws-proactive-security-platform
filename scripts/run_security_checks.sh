@@ -78,6 +78,23 @@ stage "2b. pip-audit (runtime dependencies)" bash -c '
   python3 -m pip_audit --requirement application/requirements.lock --strict
 '
 
+# Dev dependencies never reach Lambda but they execute in CI with repository
+# context. The three ignored advisories are recorded as accepted risk AR-07;
+# neither package is upgradable (checkov pins asteval==1.0.6 exactly, and
+# ecdsa PYSEC-2026-1325 has no published fix). Any NEW advisory still fails.
+stage "2d. pip-audit (development dependencies)" bash -c '
+  python3 - > reports/dev-requirements.txt <<PY
+import tomllib
+with open("pyproject.toml", "rb") as fh:
+    data = tomllib.load(fh)
+print("\n".join(data["project"]["optional-dependencies"]["dev"]))
+PY
+  python3 -m pip_audit --requirement reports/dev-requirements.txt --strict \
+    --ignore-vuln PYSEC-2026-3807 \
+    --ignore-vuln GHSA-9w56-46f6-3qhx \
+    --ignore-vuln PYSEC-2026-1325
+'
+
 # Lock integrity. Implemented in scripts/check_lock.sh so CI and this runner
 # share one implementation -- duplicating it inline in both is how the
 # templatefile vars map drifted.

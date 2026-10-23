@@ -2,7 +2,7 @@
 
 Status of every confirmed finding from [`security-findings.md`](security-findings.md).
 
-**Last updated:** 2026-10-23 · **Verified by:** full local pipeline run, 16/16 stages passing.
+**Last updated:** 2026-10-23 · **Verified by:** full local pipeline run, 17/17 stages passing.
 
 | Lifecycle state | Meaning |
 |---|---|
@@ -34,7 +34,7 @@ Status of every confirmed finding from [`security-findings.md`](security-finding
 | F-014 | Missing HTTP security response headers | Low | ✅ | ✅ | ✅ | ✅ | Low | `c9ec2b4` |
 | F-015 | Unconditional writes replace records silently | Low | ✅ | ✅ | ✅ | ✅ | Low | `c9ec2b4` |
 
-**16 of 16 remediated and retested. 0 open. 0 silently deferred.**
+**17 of 17 remediated and retested. 0 open. 0 silently deferred.**
 
 > ⚠️ **F-005 is `Validated: partial`.** The pre-remediation IAM policy is not preserved in
 > git, so there is no before/after test diff. What *is* demonstrated is that the analyzer
@@ -130,7 +130,7 @@ command and its real result.
 | IAM gate self-test | insecure fixture must be rejected | Confirmed rejected | 2026-10-23 |
 | HCL reference lint | `scripts/validate_terraform.py` | Pass (root + module) | 2026-10-23 |
 | Finding aggregation | `finding_triage.py` on 4 reports | 2 open (P4), 0 duplicates | 2026-10-23 |
-| Full pipeline | `./scripts/run_security_checks.sh` | **16/16 stages pass** | 2026-10-23 |
+| Full pipeline | `./scripts/run_security_checks.sh` | **17/17 stages pass** | 2026-10-23 |
 | `terraform fmt -check -recursive` | separate machine, TF 1.17.0 | 5 files reformatted; now clean | 2026-10-23 |
 | `terraform validate` | separate machine, TF 1.17.0 + AWS provider 6.70.0 | **FAILED, then fixed** → `Success! The configuration is valid` (2 deprecation warnings) | 2026-10-23 |
 | `terraform plan` / `apply` | — | **NOT RUN** — no AWS account (L1) | — |
