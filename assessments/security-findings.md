@@ -601,7 +601,9 @@ so `Resource: "*"` is the only legal form. X-Ray is also disabled by default
 enforcement is unverified** — no AWS account was used, so the AWS-gated tests in
 `tests/integration/test_aws_gateway_contract.py` that assert `Scan` is actually denied
 remain skipped. Residual risk: Low, with one known architectural gap (the `PutItem` grant
-is table-scoped, not sort-key-prefix-scoped — see R-06/T-06, the top-priority next step).
+was table-scoped, not sort-key-prefix-scoped — **closed on 2026-10-23** by moving
+memberships to a dedicated table with a read-only grant; see R-06/T-06 and
+`docs/ARCHITECTURE.md` D16).
 
 ---
 

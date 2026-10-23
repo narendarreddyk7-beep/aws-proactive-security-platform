@@ -191,13 +191,13 @@ against the vulnerable code. I ran the current security suite, unchanged, agains
 `v1-pre-review`:
 
 ```
-84 failed, 92 passed      # against v1-pre-review
-176 passed                # against HEAD
+93 failed, 102 passed      # against v1-pre-review
+195 passed                # against HEAD
 ```
 
 **Why I bothered.** A regression test that has never failed is not evidence that it tests
 anything. Plenty of test suites are full of assertions that would pass against a broken
-implementation. The 84 failures are the proof that these 122 regression-marked tests are
+implementation. The 84 failures are the proof that these 141 regression-marked tests are
 load-bearing.
 
 **Reproducible in four commands** — `git worktree add`, copy the current tests over the old
@@ -205,7 +205,7 @@ application, run pytest. It's in `docs/TESTING.md` §5.
 
 **A detail I like.** 92 tests *passed* against v1, and that's useful: the first draft wasn't
 uniformly insecure. It had a working log formatter and correct happy-path behaviour. Those
-passes bound the review's blast radius to the 84 behaviours that actually changed.
+passes bound the review's blast radius to the 93 behaviours that actually changed.
 
 **One finding is weaker, and I say so.** F-005 (the over-privileged IAM role) has no
 before/after test diff, because the infrastructure was written after the review and
@@ -276,7 +276,7 @@ IAM checker), tests (unit/integration/security/regression), and reporting (my tr
 **Honest status:** the workflow has never executed — no remote repository. So CodeQL has
 produced **no results at all**, and that's a real blind spot since it's the one tool with no
 local equivalent. Everything else is reproduced by `scripts/run_security_checks.sh`, which
-passes 15/15.
+passes 16/16.
 
 ---
 
@@ -383,9 +383,10 @@ that matter:
   verified against an emulator.
 - **L7 — author and reviewer are the same person.**
 
-**Residual risk: 0 critical, 0 high, 3 medium, 13 low.** The three mediums are bearer-token
-replay (inherent), the table-scoped `PutItem` grant (AR-04, has a clean fix), and no
-per-tenant availability quota (AR-05).
+**Residual risk: 0 critical, 0 high, 2 medium, 14 low.** The two mediums are bearer-token
+replay and the lack of a per-tenant availability quota — both inherent rather than unfixed.
+The third used to be the table-scoped `PutItem` grant; I closed it by splitting memberships
+into their own table (see §9).
 
 ---
 

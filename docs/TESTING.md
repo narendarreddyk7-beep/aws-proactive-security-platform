@@ -5,10 +5,10 @@ python -m pytest -q
 ```
 
 ```
-584 passed, 11 skipped, 148 warnings in 11.44s
+603 passed, 13 skipped, 148 warnings in 11.44s
 ```
 
-Verified 2026-10-23. Coverage: **89%** (2,058 statements, 668 branches).
+Verified 2026-10-23. Coverage: **89%** (2,064 statements, 668 branches).
 
 ---
 
@@ -24,7 +24,7 @@ response is correct".
 Three principles:
 
 1. **A regression test must have failed once.** A test that has never failed is not evidence
-   that it tests anything. Every one of the 122 `regression`-marked tests was demonstrated
+   that it tests anything. Every one of the 141 `regression`-marked tests was demonstrated
    to fail against `v1-pre-review` — see §5.
 2. **Skips are explicit and name their prerequisite.** A test that cannot run locally is
    present and skipped, not absent. The suite reports the gap rather than concealing it.
@@ -39,7 +39,7 @@ Three principles:
 tests/
 ├── unit/           138 tests — pure logic, no HTTP, no AWS
 ├── integration/     42 tests — the real ASGI app, moto-backed storage, Lambda event shape
-├── security/       176 tests — security invariants, mostly regression-marked
+├── security/       195 tests — security invariants, mostly regression-marked
 └── fixtures/              — synthetic data, fake stores, gateway event injector
 
 security-automation/tests/  239 tests — the two CLI tools and the triage Lambda
@@ -67,6 +67,8 @@ security-automation/tests/  239 tests — the two CLI tools and the triage Lambd
 | `test_data_access_scoping.py` | 12 | **Asserts `scan` is never called** and keys are always pinned |
 | `test_logging_and_data_protection.py` | 10 | No content, no tokens, field names only |
 | `test_error_handling.py` | 7 | Uniform envelope, no traces, no echoed values |
+| `test_membership_table_isolation.py` | 10 | The membership table is read-only — behaviourally **and** in the committed IAM policy |
+| `test_code_invariants.py` | 9 | Architectural fitness functions: no `Scan`, enforcement on every principal-taking method, no server-controlled request fields |
 | **`security-automation/tests/`** | | |
 | `test_finding_triage.py` | 142 | Normalisation, dedup, scoring, invalid and empty input |
 | `test_iam_policy_checker.py` | 59 | All 11 rules, compliant and non-compliant fixtures |
@@ -79,14 +81,14 @@ security-automation/tests/  239 tests — the two CLI tools and the triage Lambd
 ```bash
 python -m pytest -m unit -q           # 377 collected
 python -m pytest -m integration -q    #  43
-python -m pytest -m security -q       # 258
-python -m pytest -m regression -q     # 122
+python -m pytest -m security -q       # 279
+python -m pytest -m regression -q     # 141
 python -m pytest -m aws -q            #  11 — all skip without a deployment
 ```
 
 > Markers and directories overlap deliberately: the `security-automation` tool tests are
 > marked `unit`, and most `tests/security/` tests are also `regression`. The directory
-> `tests/security/` alone is **176** tests.
+> `tests/security/` alone is **195** tests.
 
 | Marker | Meaning |
 |---|---|
@@ -98,7 +100,7 @@ python -m pytest -m aws -q            #  11 — all skip without a deployment
 
 ---
 
-## 4. The 11 skipped tests
+## 4. The 13 skipped tests
 
 These are the honest edge of this project's verification. They are not optional extras —
 they are the behaviours that **cannot** be proven without AWS, and they are kept in the
@@ -111,7 +113,7 @@ SKIPPED tests/integration/test_aws_gateway_contract.py:88
   SUPPORT_API_EXPIRED_TOKEN is required to test gateway expiry enforcement.
 SKIPPED tests/integration/test_aws_gateway_contract.py:147
   SUPPORT_API_TABLE_NAME is required to test IAM least privilege.
-... (11 total)
+... (13 total)
 ```
 
 | Behaviour | Why it needs AWS |
@@ -122,6 +124,8 @@ SKIPPED tests/integration/test_aws_gateway_contract.py:147
 | A request with no `Authorization` header gets 401 at the edge | The local app returns 401 too, but from a different layer |
 | `dynamodb:Scan` is actually denied to the execution role | Requires real IAM evaluation. The policy document is analysed statically instead |
 | `dynamodb:DeleteItem` is actually denied | As above |
+| **Membership writes are *explicitly* denied to the role** | Real IAM evaluation via `iam:SimulatePrincipalPolicy`. The committed-policy assertions in `test_membership_table_isolation.py` prove the document reads correctly; only live IAM settles how boundaries, SCPs and resource policies combine (T-06 / AR-04) |
+| **The role can still read memberships** | Positive control — a policy that denied everything would pass the denial test while breaking authorization entirely |
 
 To run them against a real deployment:
 
@@ -129,7 +133,9 @@ To run them against a real deployment:
 export SUPPORT_API_BASE_URL="https://<api-id>.execute-api.<region>.amazonaws.com"
 export SUPPORT_API_ACCESS_TOKEN="<a real Cognito access token>"
 export SUPPORT_API_EXPIRED_TOKEN="<an expired one>"
-export SUPPORT_API_TABLE_NAME="<the deployed table name>"
+export SUPPORT_API_TABLE_NAME="<the deployed ticket table name>"
+export SUPPORT_API_ROLE_ARN="$(terraform output -raw lambda_execution_role_arn)"
+export SUPPORT_API_MEMBERSHIP_TABLE_ARN="$(terraform output -raw membership_table_arn)"
 python -m pytest -m aws -v
 ```
 
@@ -154,8 +160,8 @@ python -m pytest tests/security -p no:cacheprovider -q
 
 | Against | Result |
 |---|---|
-| `v1-pre-review` | **84 failed**, 92 passed |
-| `HEAD` | **176 passed** |
+| `v1-pre-review` | **93 failed**, 102 passed |
+| `HEAD` | **195 passed** |
 
 Failures by module:
 
@@ -169,6 +175,8 @@ Failures by module:
 | `test_error_handling.py` | 6 | F-008 |
 | `test_authentication.py` | 6 | F-001, F-002, F-012 |
 | `test_api_behaviour.py` | 6 | F-014 |
+| `test_membership_table_isolation.py` | 5 | T-06 / AR-04 (the table split) |
+| `test_code_invariants.py` | 4 | F-003, F-004, F-006 (the fitness functions) |
 
 Clean up:
 
@@ -215,7 +223,7 @@ python -m pytest -q --cov --cov-report=term-missing:skip-covered
 ```
 
 ```
-TOTAL    2058 stmts   183 miss   668 branch   83 brpart   89% cover
+TOTAL    2064 stmts   183 miss   668 branch   83 brpart   89% cover
 ```
 
 Uncovered lines are mostly defensive branches that are hard to reach by design: the
@@ -232,8 +240,8 @@ actually speaks to security.
 
 | ID | Limitation | Consequence |
 |---|---|---|
-| L1 | No AWS deployment | 11 behaviours unverified; alarms never observed firing |
+| L1 | No AWS deployment | 13 behaviours unverified; alarms never observed firing |
 | L5 | DynamoDB behaviour asserted against **`moto`** | Conditional-write semantics, `ValidationException` shapes and GSI consistency are verified against an emulator. The expressions are standard and reviewed, but real-service behaviour is unconfirmed |
 | L8 | No load, fuzz or penetration testing | T-13 (flooding) is reasoned about, not measured. Input validation uses targeted cases, not fuzzing |
 | — | Property-based testing not used | Hypothesis against the key builders and cursor codec would likely find edge cases these targeted tests do not |
-| — | No mutation testing | The strongest available answer to "are these tests actually load-bearing?" The §5 experiment is a partial substitute: it proves 84 of them fail when the code is wrong |
+| — | No mutation testing | The strongest available answer to "are these tests actually load-bearing?" The §5 experiment is a partial substitute: it proves 93 of them fail when the code is wrong |

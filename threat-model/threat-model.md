@@ -61,7 +61,7 @@ asserts the system is safe, it is the thing the review was conducted against.
 | T-03 | Spoofing | Token not issued for this API is accepted | Low | Critical | Low | — |
 | T-04 | Tampering | Mass assignment of server-controlled fields | High | Critical | Low | F-004 |
 | T-05 | Tampering | Client input manipulates DynamoDB keys | Medium | High | Low | F-010, F-011 |
-| T-06 | Tampering | Membership record manipulation | Low | Critical | Medium | — |
+| T-06 | Tampering | Membership record manipulation | Low | Critical | Low | — |
 | T-07 | Repudiation | Loss of attribution or forged log records | Medium | Medium | Low | F-007 |
 | T-08 | Repudiation | Silent overwrite destroys ticket history | Medium | High | Low | F-015 |
 | T-09 | Info. disclosure | Cross-tenant read through an unscoped query | High | Critical | Low | F-006 |
@@ -331,7 +331,7 @@ whole isolation design rests on.
 | **Category** | Tampering → Elevation of privilege |
 | **Trust boundary** | TB3 |
 | **Flow** | DF3 |
-| **Likelihood** | Low · **Severity** Critical · **Residual** **Medium** |
+| **Likelihood** | Low · **Severity** Critical · **Residual** Low |
 
 **Preconditions.** Write access to the membership items: the provisioning IAM principal
 is compromised, or the API's own role is widened to allow writes to `USER#` keys.
@@ -347,8 +347,10 @@ completely legitimate in the logs.
 **Existing mitigations.**
 1. The support API exposes **no endpoint** that creates or modifies a membership. There is
    no application-layer path at all.
-2. The Lambda role's `PutItem` grant is scoped to the table, and the application only
-   ever constructs `USER#` keys for *reads* — but see the honest limitation below.
+2. **Memberships live in a dedicated table, and the execution role holds
+   `dynamodb:GetItem` on it and no write action at all**, plus an explicit `Deny` on
+   `PutItem`/`UpdateItem`/`DeleteItem`/`BatchWriteItem`/`TransactWriteItems` against it.
+   This is the control that changed: see "What the table split fixed" below.
 3. Permissions boundary on the execution role prevents a change-management failure from
    widening it beyond the boundary's ceiling.
 4. Explicit `Deny` on `dynamodb:DeleteItem`, `BatchWriteItem`, `DeleteTable` and
@@ -358,25 +360,40 @@ completely legitimate in the logs.
 6. DynamoDB point-in-time recovery is enabled, so a tampered record can be identified
    against a known-good point in time.
 
-**Honest limitation.** The execution role's `dynamodb:PutItem` grant is scoped to the
-table ARN, **not** to the `TICKET#` sort-key prefix. IAM can express that constraint with
-`dynamodb:LeadingKeys`, but only for the *partition* key — it cannot restrict a sort-key
-prefix. So an arbitrary-write bug in the application could in principle write a membership
-item. The compensating controls are the absence of any code path that writes a `USER#` key
-and the conditional-write expressions, not IAM.
+**What the table split fixed.** Originally memberships shared the ticket table, and that
+made this boundary **inexpressible in IAM**. The function needs `PutItem` to create
+tickets; `dynamodb:LeadingKeys` constrains only the *partition* key; and IAM has no
+condition key for a sort-key prefix. So the `PutItem` grant was necessarily table-wide,
+and the only thing preventing a membership write was the application never constructing a
+`USER#` key — a compensating control, not a boundary. That was carried as accepted risk
+AR-04.
 
-**Recommended further safeguards.** Move memberships to a **separate table** so the
-execution role can be granted read-only access to it — this is the clean fix and is the
-top-ranked next step in the final assessment. Alternatively, add a
-`dynamodb:LeadingKeys` condition and split ticket/membership partitions accordingly.
-CloudTrail data events on the table for forensic coverage.
+Memberships now live in `aws_dynamodb_table.memberships`. The grant is `GetItem` on that
+table and nothing else, with an explicit `Deny` on every write action (an explicit `Deny`
+cannot be overridden by any later `Allow`, so a future broad policy attached to this role
+still cannot grant a membership write). The permissions boundary is capped the same way,
+so replacing the inline policy does not widen it. The new table carries no GSI: every read
+is an exact `(PK, SK)` `GetItem`, and an index would add a second access path to the
+authorization source of truth for an access pattern that does not exist.
 
-**Verification.** `tests/security/test_data_access_scoping.py` asserts the application
-never issues a write against a `USER#` partition. IAM enforcement itself is an AWS-gated
-test (`test_aws_gateway_contract.py`) and is **unverified** here.
+**Recommended further safeguards.** CloudTrail data events on the membership table for
+forensic coverage. Securing the out-of-band provisioning process itself, which does not
+yet exist (limitation L9) and is now the dominant residual exposure for this threat.
 
-**Residual risk — Medium.** The architectural fix (separate table) is identified but not
-implemented. Recorded as AR-04.
+**Verification.** `tests/security/test_membership_table_isolation.py` (10 tests). Half are
+behavioural — the two table names must differ, the lookup hits the right table with a
+`ConsistentRead`, no code path issues a write, the class exposes no write-shaped method, a
+full ticket lifecycle leaves the membership table untouched. Half parse the **committed
+IAM policy document** and assert that only `GetItem` is allowed on the membership table,
+that every write to it is explicitly denied, and that the boundary denies them too — which
+is testable without AWS precisely because the policies are committed JSON rather than
+rendered by the provider at plan time (decision D11). Verified load-bearing: 3 of the 4
+policy assertions fail against the pre-split policy. Live IAM enforcement remains an
+AWS-gated test and is **unverified** here.
+
+**Residual risk — Low.** The architectural fix is implemented. What remains is that live
+IAM enforcement is unverified without a deployment (L1), and that the provisioning process
+which populates this table is unimplemented and therefore unassessed (L9).
 
 ---
 

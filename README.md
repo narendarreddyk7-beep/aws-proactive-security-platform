@@ -4,8 +4,8 @@ A multi-tenant customer support API on AWS, built as an **application security e
 exercise**: designed, threat-modelled, deliberately written without security review,
 reviewed, remediated, and verified — with the evidence for each step kept in the repository.
 
-[![Security CI](https://img.shields.io/badge/security--ci-5%20gated%20stages-informational)](.github/workflows/security-ci.yml)
-[![Tests](https://img.shields.io/badge/tests-584%20passed%20%7C%2011%20skipped-success)](docs/TESTING.md)
+[![Security CI](https://img.shields.io/badge/security--ci-16%20gated%20checks-informational)](.github/workflows/security-ci.yml)
+[![Tests](https://img.shields.io/badge/tests-603%20passed%20%7C%2013%20skipped-success)](docs/TESTING.md)
 [![Findings](https://img.shields.io/badge/findings-15%20confirmed%20%7C%2015%20remediated-success)](assessments/security-findings.md)
 [![Coverage](https://img.shields.io/badge/coverage-89%25-success)](docs/TESTING.md)
 [![Deployed](https://img.shields.io/badge/aws%20deployment-none-lightgrey)](docs/AWS_DEPLOYMENT.md)
@@ -52,10 +52,10 @@ before-and-after output, rather than a list of controls asserted to be present:
 
 ```
 $ python -m pytest tests/security -q      # against v1-pre-review
-84 failed, 92 passed
+93 failed, 102 passed
 
 $ python -m pytest tests/security -q      # against HEAD
-176 passed
+195 passed
 ```
 
 **The author of the first draft and the reviewer are the same engineer.** That is the
@@ -149,7 +149,7 @@ Components, actors and trust boundaries:
 | **Terraform** | All infrastructure as code; IAM policies kept as committed JSON so CI can gate what actually deploys |
 | **GitHub Actions** | 5-stage gated security pipeline |
 | **CodeQL / Bandit / pip-audit / Checkov / Ruff** | Semantic analysis, SAST, SCA, IaC scanning, lint (with bandit-equivalent rules) |
-| **pytest + moto** | 595 tests, no AWS credentials required |
+| **pytest + moto** | 616 tests, no AWS credentials required |
 | **OWASP ASVS / Top 10 / API Top 10, STRIDE, CWE** | The frameworks the requirements and findings are mapped to |
 
 Deliberately **not** used: Kubernetes, microservice orchestration, or any paid service
@@ -168,7 +168,7 @@ enabled by default.
 | **Manual code review** | [`assessments/code-review-checklist.md`](assessments/code-review-checklist.md) | 60 items across 10 domains, every item with a verdict; 15 findings and 7 observations kept separate |
 | **Findings and remediation** | [`assessments/security-findings.md`](assessments/security-findings.md) | 15 confirmed findings with file/line evidence, CWE + OWASP mapping, root cause, fix, and guarding test |
 | **Regression evidence** | [`assessments/regression-evidence.md`](assessments/regression-evidence.md) | Verbatim before/after output, including the captured `201 Created` cross-tenant write |
-| **Infrastructure security** | [`infrastructure/terraform/`](infrastructure/terraform/) | 10 `.tf` files; Checkov 134 passed / 0 failed / 12 justified skips |
+| **Infrastructure security** | [`infrastructure/terraform/`](infrastructure/terraform/) | 10 `.tf` files; Checkov 137 passed / 0 failed / 12 justified skips |
 | **Least-privilege IAM** | [`infrastructure/terraform/policies/`](infrastructure/terraform/policies/) | Enumerated actions, ARN-scoped, 2 explicit `Deny` statements, permissions boundary |
 | **Security automation** | [`security-automation/`](security-automation/) | Two original CLIs, 3,513 lines, 239 tests |
 | **CI/CD security** | [`.github/workflows/security-ci.yml`](.github/workflows/security-ci.yml) | 5 stages, deny-by-default token, a gate that fails on a *skipped* security job, and a gate self-test |
@@ -190,7 +190,7 @@ python3 -m venv .venv && source .venv/bin/activate
 python -m pip install -e '.[dev]'
 
 python -m pytest -q
-# 584 passed, 11 skipped
+# 603 passed, 13 skipped
 ```
 
 Run the API:
@@ -208,16 +208,16 @@ synthetic memberships, and prints the demo identities. Full detail:
 ## Testing
 
 ```bash
-python -m pytest -q                        # 584 passed, 11 skipped
+python -m pytest -q                        # 603 passed, 13 skipped
 python -m pytest -m unit -q                # 377
 python -m pytest -m integration -q         #  43
-python -m pytest -m security -q            # 258
-python -m pytest -m regression -q          # 122
-python -m pytest -m aws -v                 #  11 — skip without a deployment
+python -m pytest -m security -q            # 279
+python -m pytest -m regression -q          # 141
+python -m pytest -m aws -v                 #  13 — skip without a deployment
 python -m pytest -q --cov                  # 89% coverage
 ```
 
-The 11 skips are **present and skipped, not absent** — each names its missing prerequisite,
+The 13 skips are **present and skipped, not absent** — each names its missing prerequisite,
 so the suite reports the gap on every run instead of concealing it.
 
 Reproduce the before/after proof yourself:
@@ -226,7 +226,7 @@ Reproduce the before/after proof yourself:
 git worktree add /tmp/v1check v1-pre-review
 cp -r tests /tmp/v1check/tests_current && cp pyproject.toml /tmp/v1check/pyproject.toml.cur
 cd /tmp/v1check && rm -rf tests && mv tests_current tests && cp pyproject.toml.cur pyproject.toml
-python -m pytest tests/security -q         # 84 failed, 92 passed
+python -m pytest tests/security -q         # 93 failed, 102 passed
 cd - && git worktree remove --force /tmp/v1check
 ```
 
@@ -317,7 +317,7 @@ end to end:
 | 3 | Verify tenant isolation | **Five requests, five different refusals:** colleague → 403, other tenant → **404 not 403**, body-supplied tenancy → 422, header-asserted admin role → 403 with a `role_claim_mismatch` logged, suspended membership → 403 |
 | 4 | Lifecycle and validation | Member cannot close a ticket (403); closed is terminal (409); `limit` bounds (422); `%23` key-separator injection (422); a hand-forged cross-tenant pagination cursor (400) |
 | 5 | Check the logs | **Zero** occurrences of the ticket's title or description, with full `authorization_denied` audit records |
-| 6 | Run the security tests | 584 passed, plus the 84-failure proof against the pre-review code |
+| 6 | Run the security tests | 603 passed, plus the 84-failure proof against the pre-review code |
 | 7 | Scan the infrastructure | Checkov 134/0/12 |
 | 8 | Run the IAM policy checker | 0 blocking findings — **and the gate self-test proving it rejects an insecure fixture** |
 | 9 | Run finding triage | 4 scanner formats → one normalised, deduplicated, prioritised report |
@@ -336,20 +336,20 @@ Verified on 2026-10-23. Each figure is reproducible with the command shown.
 
 | Metric | Value | Command |
 |---|---|---|
-| Tests passing | **584** (11 AWS-gated skips) | `pytest -q` |
-| Regression tests | **122**, each demonstrated to fail against `v1-pre-review` | `pytest -m regression -q` |
-| Failures against pre-review code | **84** (92 passed) | see [Testing](#testing) |
-| Coverage | **89%** (2,058 statements) | `pytest --cov` |
-| Confirmed findings remediated | **15 of 15** | [`remediation-tracker.md`](assessments/remediation-tracker.md) |
+| Tests passing | **603** (13 AWS-gated skips) | `pytest -q` |
+| Regression tests | **141**, each demonstrated to fail against `v1-pre-review` | `pytest -m regression -q` |
+| Failures against pre-review code | **93** (92 passed) | see [Testing](#testing) |
+| Coverage | **89%** (2,064 statements) | `pytest --cov` |
+| Confirmed findings remediated | **16 of 16** | [`remediation-tracker.md`](assessments/remediation-tracker.md) |
 | Lint | **clean** (incl. bandit-equivalent `S` rules) | `ruff check . && ruff format --check .` |
 | SAST | **0** at medium+; **0** `nosec` suppressions | `bandit -c pyproject.toml -ll` |
 | SCA | 21 packages, **0 vulnerabilities** | `pip-audit` |
-| IaC scan | **134 passed, 0 failed**, 12 justified skips | `checkov -d infrastructure/` |
+| IaC scan | **137 passed, 0 failed**, 12 justified skips | `checkov -d infrastructure/` |
 | IAM policy analysis | 1 INFO, **0 blocking** | `iam_policy_checker.py` |
-| Local pipeline | **15 of 15 stages pass** | `./scripts/run_security_checks.sh` |
+| Local pipeline | **16 of 16 stages pass** | `./scripts/run_security_checks.sh` |
 | STRIDE threats | 16, across 10 data flows and 7 trust boundaries | [`threat-model.md`](threat-model/threat-model.md) |
 | Security requirements | 91 (76 verified / 11 AWS-gated / 4 open) | [`security-requirements.md`](threat-model/security-requirements.md) |
-| Residual risk | **0 critical, 0 high**, 3 medium, 13 low | [`final-security-assessment.md`](assessments/final-security-assessment.md) |
+| Residual risk | **0 critical, 0 high**, 2 medium, 14 low | [`final-security-assessment.md`](assessments/final-security-assessment.md) |
 
 Three genuine failures were found and fixed during the final verification run rather than
 written off: two Ruff violations, and a real bug where Checkov writes its JSON report to a
@@ -364,22 +364,32 @@ The project's assurance stops here, and saying so precisely is part of the work.
 
 | ID | Limitation | Consequence |
 |---|---|---|
-| **L1** | **Nothing deployed to AWS.** No account used | Live JWT rejection, real IAM enforcement, Cognito flows and alarm firing are all **unverified**. 11 tests skip for exactly this reason |
+| **L1** | **Nothing deployed to AWS.** No account used | Live JWT rejection, real IAM enforcement, Cognito flows and alarm firing are all **unverified**. 13 tests skip for exactly this reason |
 | **L2** | **`terraform validate` / `fmt` / `plan` never run.** Binary not installable (`releases.hashicorp.com` outside the egress allow-list; proxy returned `403 to CONNECT`) | Checkov parsing all 10 files is partial evidence the HCL parses — it is **not** provider-schema validation. An incorrect argument name would not have been caught |
-| **L3** | **CI workflow never executed.** No remote repository | **CodeQL has produced no results at all** — the one tool with no local equivalent. Everything else is mirrored by a local runner passing 15/15. Actions are pinned to tags, not commit SHAs |
-| **L4** | No dependency lock file | Builds are not bit-reproducible. Deliberate trade-off: lower bounds let `pip-audit` surface advisories rather than masking them behind a stale pin |
+| **L3** | **CI workflow never executed.** No remote repository | **CodeQL has produced no results at all** — the one tool with no local equivalent. Everything else is mirrored by a local runner passing 16/16. Actions are pinned to tags, not commit SHAs |
 | **L5** | DynamoDB behaviour asserted against **`moto`** | Conditional-write semantics and GSI consistency are verified against an emulator, not the real service |
 | **L6** | **Security Hub never enabled** | The ASFF transformation is unit-tested with 38 synthetic events; end-to-end delivery is unverified. Off by default |
 | **L7** | **Author and reviewer are the same engineer** | The weakest form of review. An independent reviewer would find things this one did not |
 | **L8** | No load, fuzz or penetration testing | Flooding risk (T-13) is reasoned about, not measured |
 | **L9** | Membership provisioning is out of band and **unimplemented** | The authorization source of truth is populated by a process that does not exist, so its own security is unassessed — which is why that risk is rated Medium |
 
+### Closed since the first assessment (2026-10-23)
+
+- **AR-04 / T-06** — memberships moved to a **dedicated table**, so the execution role now
+  holds `GetItem` on the authorization source of truth and no write action at all, with an
+  explicit `Deny` on every write. This was the last Medium confidentiality risk, and it
+  needed a table split rather than a policy edit: IAM cannot constrain a sort-key prefix.
+- **L4** — hashed dependency lock, installed with `--require-hashes`, plus a CI gate that
+  recompiles and diffs to catch drift.
+- **S-8/9/10** — three AST-based fitness functions that assert the `Scan`, enforcement and
+  request-model invariants across the whole module tree rather than at one call site.
+
 ### Top three next steps
 
-1. **Split memberships into a separate DynamoDB table** so the execution role can be
-   read-only on them. IAM cannot constrain a sort-key prefix, so no policy change
-   substitutes for this. Accepted risk AR-04.
-2. **Deploy to a sandbox and run the 11 AWS-gated tests.** Closes L1, L2 and L5 in one move.
+1. **Deploy to a sandbox and run the 13 AWS-gated tests.** Now the single largest
+   assurance gap — closes L1, L2 and L5 in one move, and is the only way to confirm the
+   `Scan` and membership-write denials are enforced in practice rather than on paper.
+2. **Push to GitHub and watch the pipeline.** CodeQL has produced no results at all.
 3. **Get an independent review.** The limitation no amount of self-review can close.
 
 ---

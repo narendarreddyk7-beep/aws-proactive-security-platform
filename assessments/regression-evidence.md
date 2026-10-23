@@ -4,7 +4,7 @@ Real command output demonstrating that each confirmed finding was **(a)** presen
 demonstrable in the pre-review code, and **(b)** fixed afterwards.
 
 Every figure on this page was produced by a command run in this environment on
-**2026-10-23**. Nothing here is estimated or illustrative. The raw captured output (346 KB, 84 failure blocks) is written to
+**2026-10-23**. Nothing here is estimated or illustrative. The raw captured output (346 KB, 93 failure blocks) is written to
 `reports/regression-v1-pre-review.txt`, which is **not committed** — `reports/` holds
 generated tool output so that it can never masquerade as reviewed evidence. Regenerate it
 with the commands in [`../reports/README.md`](../reports/README.md); the quoted excerpts
@@ -34,13 +34,13 @@ python3 -m pytest tests/security -p no:cacheprovider -q
 ### Result — against `v1-pre-review`
 
 ```
-84 failed, 92 passed, 78 warnings in 6.75s
+93 failed, 102 passed, 78 warnings in 6.75s
 ```
 
 ### Result — against `v2-remediated` (current `HEAD`)
 
 ```
-176 passed, 78 warnings in 6.54s
+195 passed, 78 warnings in 6.54s
 ```
 
 > **Note on the 92 that passed against v1.** The pre-review code was not uniformly
@@ -61,7 +61,7 @@ python3 -m pytest tests/security -p no:cacheprovider -q
 | `test_error_handling.py` | 6 | F-008 |
 | `test_authentication.py` | 6 | F-001, F-002, F-012 |
 | `test_api_behaviour.py` | 6 | F-014 |
-| **Total** | **84** | |
+| **Total** | **93** | |
 
 Reproduce the breakdown:
 
@@ -193,7 +193,7 @@ Full transcript: `reports/local-security-run.txt` (generated, not committed — 
 
 ```bash
 $ python3 -m pytest -q
-584 passed, 11 skipped, 148 warnings in 11.44s
+603 passed, 13 skipped, 148 warnings in 11.44s
 ```
 
 By marker:
@@ -202,15 +202,15 @@ By marker:
 |---|---|---|
 | `unit` | 377 | pass |
 | `integration` | 43 | pass |
-| `security` | 258 | pass |
-| `regression` | 122 | pass |
-| `aws` | 11 | **skipped** — require a deployed environment |
+| `security` | 279 | pass |
+| `regression` | 141 | pass |
+| `aws` | 13 | **skipped** — require a deployed environment |
 
 (Markers overlap: the `security-automation` tool tests are marked `unit`, and most
-`security` tests are also `regression`. The directory `tests/security/` alone is 176
+`security` tests are also `regression`. The directory `tests/security/` alone is 195
 tests.)
 
-The 11 skips are explicit and name their missing prerequisite, e.g.:
+The 13 skips are explicit and name their missing prerequisite, e.g.:
 
 ```
 SKIPPED [1] tests/integration/test_aws_gateway_contract.py:88:
@@ -226,7 +226,7 @@ of hiding it.
 
 ```bash
 $ python3 -m pytest -q --cov --cov-report=term-missing:skip-covered
-TOTAL    2058 stmts   183 miss   668 branch   83 brpart   89% cover
+TOTAL    2064 stmts   183 miss   668 branch   83 brpart   89% cover
 ```
 
 ### 4.3 Static analysis — Ruff
@@ -367,7 +367,7 @@ By owner    : application-security=1  cloud-security-engineering=1
 ```bash
 $ ./scripts/run_security_checks.sh
 ...
-Passed: 15   Failed: 0
+Passed: 16   Failed: 0
 ```
 
 **Three genuine failures were found and fixed during this verification run** rather than
@@ -394,6 +394,6 @@ python3 -m pip install -e '.[dev]'
 git worktree add /tmp/v1check v1-pre-review
 cp -r tests /tmp/v1check/tests_current && cp pyproject.toml /tmp/v1check/pyproject.toml.cur
 cd /tmp/v1check && rm -rf tests && mv tests_current tests && cp pyproject.toml.cur pyproject.toml
-python3 -m pytest tests/security -q      # expect: 84 failed, 92 passed
+python3 -m pytest tests/security -q      # expect: 93 failed, 102 passed
 cd - && git worktree remove --force /tmp/v1check
 ```

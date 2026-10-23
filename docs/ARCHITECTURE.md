@@ -57,7 +57,7 @@ what happens when the audit is skipped.
 | | |
 |---|---|
 | **Why** | The application then has **no code path that accepts a token**, so a token-parsing or JWKS-caching vulnerability has nowhere to land. Unauthenticated requests never reach compute — which is also the cheapest possible DoS rejection |
-| **Cost** | The behaviour cannot be unit-tested locally. This is a real cost, not a notional one: 11 tests are explicitly skipped and the gateway's rejection of an expired token is **unverified** in this project |
+| **Cost** | The behaviour cannot be unit-tested locally. This is a real cost, not a notional one: 13 tests are explicitly skipped and the gateway's rejection of an expired token is **unverified** in this project |
 | **Alternative's appeal** | Full local testability, and no dependency on authorizer configuration being right |
 | **Why that lost** | It moves cryptographic verification into the blast radius of every application bug, and a misconfigured JWKS cache is a subtler failure than a misconfigured authorizer |
 
@@ -229,14 +229,50 @@ Security Hub, X-Ray and SNS email subscriptions are feature-flagged **off**, so 
 `terraform apply` stays inside the free tier. A security project that costs money to look at
 does not get looked at.
 
+### D16 — Memberships live in a separate table
+
+**Chosen:** a dedicated `aws_dynamodb_table.memberships`, with the execution role granted
+`dynamodb:GetItem` on it and no write action at all.
+
+**Rejected:** keeping memberships in the ticket table under a `USER#` partition key, and
+constraining writes with an IAM condition.
+
+**Why the rejected option is not available.** The function needs `PutItem` to create
+tickets. `dynamodb:LeadingKeys` constrains only the **partition** key, and IAM has no
+condition key for a sort-key prefix. So in a single table the `PutItem` grant is
+necessarily table-wide, and the only thing preventing a membership write is the
+application never constructing a `USER#` key.
+
+That is a compensating control, not a boundary — it holds exactly as long as no code path
+and no bug ever writes that key. Since the membership record is the authoritative source
+of a caller's role, write access to it is tenant takeover, which makes this the one place
+where "the application doesn't do that" is not a good enough answer. It was carried as
+accepted risk AR-04 until the table was split.
+
+With two tables the boundary is expressible and enforced: `GetItem` only, an explicit
+`Deny` on every write action (an explicit `Deny` cannot be overridden by any later
+`Allow`), and the permissions boundary capped the same way so replacing the inline policy
+does not widen it.
+
+**Cost:** a second table to provision, and a second `GetItem` target. No additional
+request cost — the membership lookup was already one `GetItem` (D3).
+
+**Testable without AWS**, because the policies are committed JSON (D11):
+`tests/security/test_membership_table_isolation.py` parses the deployed document and
+asserts the grant is read-only. Three of its four policy assertions fail against the
+pre-split policy.
+
 ---
 
 ## 3. Data model
 
-| Entity | PK | SK | GSI1PK | GSI1SK |
-|---|---|---|---|---|
-| Ticket | `TENANT#{org}` | `TICKET#{uuid}` | `TENANT#{org}#USER#{user}` | `CREATED#{iso8601}#{uuid}` |
-| Membership | `USER#{sub}` | `MEMBERSHIP#{org}` | — | — |
+**Two tables**, not one. The split is a security boundary, not a modelling preference —
+see D16.
+
+| Table | Entity | PK | SK | GSI1PK | GSI1SK |
+|---|---|---|---|---|---|
+| `…` (tickets) | Ticket | `TENANT#{org}` | `TICKET#{uuid}` | `TENANT#{org}#USER#{user}` | `CREATED#{iso8601}#{uuid}` |
+| `…-memberships` | Membership | `USER#{sub}` | `MEMBERSHIP#{org}` | — | — |
 
 ### Access patterns
 
@@ -253,13 +289,10 @@ Three properties worth noting:
    edge and asserted again in every key builder (F-011).
 2. **ISO-8601 UTC sorts lexicographically in chronological order**, so GSI1SK needs no
    numeric conversion; the ticket id is appended to break same-millisecond ties.
-3. **Memberships share the table but not the partition.** This is the system's known
-   architectural weakness: IAM cannot constrain a *sort-key* prefix
-   (`dynamodb:LeadingKeys` governs the partition key only), so the role's `PutItem` grant is
-   table-scoped and could in principle write a `USER#` item. Compensated by there being no
-   code path that does so (test-asserted), by conditional writes, and by explicit `Deny` on
-   delete and bulk-write. **The clean fix is a separate membership table, and it is the
-   top-priority next step** (AR-04 / S-1).
+3. **Memberships are in their own table**, with no GSI. Every read is an exact
+   `(PK, SK)` `GetItem`, so an index would add a second access path to the authorization
+   source of truth for an access pattern that does not exist. See D16 for why this is a
+   boundary rather than tidiness.
 
 ---
 

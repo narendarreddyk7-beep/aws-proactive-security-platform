@@ -12,7 +12,7 @@ Automated Risk Remediation Platform)
 ## 1. Executive summary
 
 A multi-tenant support-ticket API was designed, built, threat-modelled, security-reviewed
-and remediated. The review examined 2,058 statements of application and automation code
+and remediated. The review examined 2,064 statements of application and automation code
 plus 10 Terraform files, and **confirmed 15 findings** — one Critical, four High, seven
 Medium, three Low. **All 15 are remediated**, each guarded by a regression test that was
 first demonstrated to fail against the vulnerable code.
@@ -49,10 +49,10 @@ represented as anything else.
 | Tenant isolation | **Strong** — structural (partition key + index + IAM Deny), not procedural |
 | Input validation | **Strong** — `extra="forbid"` everywhere, typed identifiers, bounded sizes |
 | Data protection | **Strong** — log field allow-list, CMK encryption, no content in logs or errors |
-| IAM least privilege | **Strong, one known gap** — enumerated actions and explicit Denies; `PutItem` is table-scoped rather than sort-key-scoped (S-1) |
+| IAM least privilege | **Strong** — enumerated actions, explicit Denies, permissions boundary. The authorization source of truth is in its own table with a read-only grant (AR-04 closed) |
 | Detection | **Adequate, unverified** — metric filters and 8 alarms defined; never observed firing |
 | Availability | **Adequate** — throttling and reserved concurrency; no per-tenant quota (AR-05) |
-| Supply chain | **Adequate** — SAST/SCA/IaC scanning in CI; no lock file (S-2) |
+| Supply chain | **Strong** — SAST/SCA/IaC scanning in CI; hashed lock file installed with `--require-hashes`; CI gate on lock drift |
 | Deployment assurance | **Not established** — nothing deployed; `terraform validate` not run |
 
 ---
@@ -67,7 +67,7 @@ represented as anything else.
 | IAM policy documents | `infrastructure/terraform/policies/*.json` |
 | Terraform configuration, 10 files + 1 module | `infrastructure/**` |
 | Security automation, 2 CLIs (3,513 lines) | `security-automation/*.py` |
-| Test suite, 595 tests | `tests/**`, `security-automation/tests/**` |
+| Test suite, 616 tests | `tests/**`, `security-automation/tests/**` |
 | CI/CD pipeline | `.github/workflows/security-ci.yml` |
 
 ### Out of scope
@@ -255,10 +255,10 @@ Five pipeline stages, `.github/workflows/security-ci.yml`, mirrored by
 | 2 AppSec | Bandit | medium severity+ fails | 0 at medium+; 0 `nosec`; 4,780 lines |
 | 2 AppSec | pip-audit | any known vulnerability fails | 21 packages, 0 vulnerabilities |
 | 3 IaC | Custom HCL reference linter | any error fails | Pass (root + module) |
-| 3 IaC | Checkov | any failed check fails | 134 passed, 0 failed, 12 justified skips |
+| 3 IaC | Checkov | any failed check fails | 137 passed, 0 failed, 12 justified skips |
 | 3 IaC | **`iam_policy_checker.py`** (own tool) | high severity+ fails | 1 INFO, 0 blocking |
 | 3 IaC | **IAM gate self-test** | insecure fixture *must* fail | Confirmed rejected |
-| 4 Tests | pytest unit / integration / security / regression | any failure fails | 584 passed, 11 skipped |
+| 4 Tests | pytest unit / integration / security / regression | any failure fails | 603 passed, 13 skipped |
 | 5 Reporting | **`finding_triage.py`** (own tool) | aggregates, dedups, prioritises | 2 open (P4), 0 duplicates |
 
 Two custom tools, both with their own unit tests:
@@ -288,29 +288,29 @@ AWS credentials, `pull_request` trigger with no deployment job.
 
 ```
 $ python3 -m pytest -q
-584 passed, 11 skipped, 148 warnings in 11.44s
+603 passed, 13 skipped, 148 warnings in 11.44s
 
 $ python3 -m pytest -q --cov
-TOTAL  2058 stmts  183 miss  668 branch  83 brpart  89% cover
+TOTAL  2064 stmts  183 miss  668 branch  83 brpart  89% cover
 ```
 
 | Suite | Collected | Result |
 |---|---|---|
 | `unit` | 377 | pass |
 | `integration` | 43 | pass |
-| `security` | 258 | pass |
-| `regression` | 122 | pass |
-| `aws` | 11 | **skipped** — named prerequisite missing |
+| `security` | 279 | pass |
+| `regression` | 141 | pass |
+| `aws` | 13 | **skipped** — named prerequisite missing |
 
 **The regression experiment is the central piece of evidence.** The security suite, run
 unchanged against the pre-review code:
 
 ```
 $ python3 -m pytest tests/security -q        # @ v1-pre-review
-84 failed, 92 passed
+93 failed, 102 passed
 
 $ python3 -m pytest tests/security -q        # @ HEAD
-176 passed
+195 passed
 ```
 
 Each of the 14 fully-validated findings maps to named tests that fail on one side and pass
@@ -318,7 +318,7 @@ on the other. Verbatim output, including the captured `201 Created` cross-tenant
 the log lines showing customer content being written, is in
 [`regression-evidence.md`](regression-evidence.md).
 
-The 11 skips are explicit and name their prerequisite (`SUPPORT_API_BASE_URL`,
+The 13 skips are explicit and name their prerequisite (`SUPPORT_API_BASE_URL`,
 `SUPPORT_API_EXPIRED_TOKEN`, `SUPPORT_API_TABLE_NAME`). They are **present and skipped
 rather than absent**, so the suite reports the gap instead of concealing it.
 
@@ -333,7 +333,7 @@ rather than absent**, so the suite reports the gap instead of concealing it.
 | **AR-01** | KMS key policies use `Resource: "*"` (Checkov `CKV_AWS_109`, `CKV_AWS_111`, `CKV_AWS_356`) | Low | In a *key* policy, `Resource: "*"` denotes the key itself — it is the only legal form, and the account-root statement is mandatory for key manageability. The discretionary service grants are condition-constrained. A true positive in an identity policy; a false positive here | Cloud Security | 2027-04-23 |
 | **AR-02** | `GET /v1/health` is unauthenticated (`CKV_AWS_309`) | Low | Intentional liveness probe. Returns a static payload naming only the service, application version and environment label (`dev`/`production`) — deliberately **not** the table name, region, or any identity-provider detail, which `tests/security/test_api_behaviour.py::test_health_endpoint_does_not_disclose_configuration` asserts by setting a distinctive table name and region and requiring neither appears. The version and environment are accepted as low-value disclosure in exchange for an operator being able to confirm which stage they reached | Cloud Security | 2027-04-23 |
 | **AR-03** | Bearer-token theft and replay (T-02) | Medium | Inherent to the OAuth bearer model. Mitigated by short token TTL, optional MFA, Cognito advanced security, TLS and per-request audit logging. Eliminating it needs proof-of-possession (DPoP/mTLS), which the client application would have to support | Product + Security | 2026-12-23 |
-| **AR-04** | Execution role's `PutItem` is table-scoped, not sort-key-scoped (T-06) | Medium | IAM cannot constrain a sort-key prefix — `dynamodb:LeadingKeys` governs the partition key only. Compensated by: no code path writes a `USER#` key (test-asserted), conditional writes, explicit `Deny` on delete/bulk-write, permissions boundary, PITR, `role_claim_mismatch` alarm. **The clean fix (S-1) is the top-priority next step** | Cloud Security | **2026-11-23** |
+| ~~**AR-04**~~ | ~~Execution role's `PutItem` is table-scoped, not sort-key-scoped (T-06)~~ | ~~Medium~~ | **RESOLVED 2026-10-23.** No longer accepted. Memberships moved to a dedicated table, so the boundary became expressible in IAM: `GetItem` only, explicit `Deny` on every write, boundary capped the same way. Verified by `tests/security/test_membership_table_isolation.py`, of which 3 policy assertions fail against the pre-split policy. Residual risk for T-06 is now Low | Cloud Security | closed |
 | **AR-05** | No per-tenant availability quota (T-13) | Medium | Reserved concurrency protects the account but *is* the mechanism by which one tenant's flood becomes everyone's outage, because the function is shared. Availability is objective O8 — ranked last deliberately | Cloud Security | 2026-12-23 |
 | **AR-06** | Lambda not in a VPC; no DLQ; no code signing (`CKV_AWS_117`, `CKV_AWS_116`, `CKV_AWS_272`) | Low | The function reaches only DynamoDB, KMS and CloudWatch endpoints, so a VPC adds cost and cold-start latency with no security gain. Invocations are synchronous, so a DLQ has no event to replay. Code signing needs a Signer profile and a CI signing step (S-13) | Cloud Security | 2027-04-23 |
 
@@ -341,9 +341,15 @@ rather than absent**, so the suite reports the gap instead of concealing it.
 
 | Residual | Risks | IDs |
 |---|---|---|
-| **Low** | 13 | R-01, R-03, R-04, R-05, R-07, R-08, R-09, R-10, R-11, R-12, R-14, R-15, R-16 |
-| **Medium** | 3 | R-02 (token replay), R-06 (membership tampering), R-13 (flooding) |
+| **Low** | 14 | R-01, R-03, R-04, R-05, **R-06**, R-07, R-08, R-09, R-10, R-11, R-12, R-14, R-15, R-16 |
+| **Medium** | 2 | R-02 (token replay), R-13 (flooding) |
 | **High / Critical** | 0 | — |
+
+R-06 moved from Medium to Low on 2026-10-23 when the membership table was split out
+(AR-04 closed). The two remaining Mediums are both inherent rather than unfixed:
+bearer-token replay is a property of the OAuth bearer model, and the absence of a
+per-tenant availability quota is a consequence of one shared function — availability is
+objective O8, ranked last deliberately.
 
 No residual risk is recorded as "none". Every Low rating means "the control is verified
 today; re-verify after a refactor", and the re-review triggers are listed in
@@ -359,30 +365,39 @@ Stated plainly. Each is a real gap in assurance, not a formality.
 |---|---|---|
 | **L1** | **Nothing was deployed to AWS.** No account was used. | `terraform plan/apply/destroy` unexercised. Live JWT rejection, Cognito flows, real IAM enforcement and alarm firing are all **unverified**. Infrastructure confidence rests on static analysis and review only |
 | **L2** | **`terraform fmt` / `validate` / `plan` were never run.** The binary cannot be installed: `releases.hashicorp.com` is outside this environment's egress allow-list (proxy returned `403 to CONNECT`) | HCL is parsed by Checkov and by a custom reference linter, which is partial evidence that it parses — **it is not provider-schema validation.** An argument name or type error would not have been caught |
-| **L3** | **The GitHub Actions workflow has never executed.** No remote repository. | Job wiring, CodeQL configuration and gating behaviour are reviewed, not observed. Every stage *is* reproduced locally by `scripts/run_security_checks.sh`, which passes 15/15 — but CodeQL has no local equivalent and has produced **no results at all** |
-| **L4** | **No dependency lock file.** Lower bounds only. | Builds are not bit-reproducible. Deliberate trade-off: lower bounds let `pip-audit` surface advisories rather than masking them behind a stale pin. Fix: S-2 |
+| **L3** | **The GitHub Actions workflow has never executed.** No remote repository. | Job wiring, CodeQL configuration and gating behaviour are reviewed, not observed. Every stage *is* reproduced locally by `scripts/run_security_checks.sh`, which passes 16/16 — but CodeQL has no local equivalent and has produced **no results at all** |
+| ~~**L4**~~ | ~~No dependency lock file~~ | **RESOLVED 2026-10-23.** `application/requirements.lock` pins all 21 runtime packages with sha256 hashes; the Lambda build installs from it with `--require-hashes`; `pip-audit` audits the lock, so the audited tree is the shipped tree; and a CI gate recompiles and diffs to catch lock drift. The earlier reasoning (lower bounds so advisories surface) is satisfied instead by the weekly scheduled CI run auditing the lock |
 | **L5** | **DynamoDB behaviour is asserted against `moto`**, not real DynamoDB. | Conditional-write semantics, `ValidationException` shapes and GSI consistency are verified against an emulator. The expressions are standard and reviewed, but real-service behaviour is unconfirmed |
 | **L6** | **Security Hub was never enabled.** | The ASFF transformation is unit-tested with synthetic events; end-to-end EventBridge delivery is unverified. The integration is off by default and the project is fully demonstrable without it |
 | **L7** | **Author and reviewer are the same engineer.** | The weakest form of review. An independent reviewer would find issues this review did not. No external validation of the findings or their severities |
 | **L8** | **No load, fuzz or penetration testing.** | T-13 (flooding) is reasoned about, not measured. Input validation is tested with targeted cases, not fuzzed |
-| **L9** | **Membership provisioning is out of band and unimplemented.** | The authorization source of truth is populated by a process that does not exist yet, so its own security is unassessed — which is precisely why T-06/AR-04 is rated Medium |
+| **L9** | **Membership provisioning is out of band and unimplemented.** | The authorization source of truth is populated by a process that does not exist yet, so its own security is unassessed. Now the dominant residual exposure for T-06, since the IAM side was closed by the table split |
 
 ---
 
 ## 13. Prioritised next steps
 
+### Completed since the initial assessment (2026-10-23)
+
+| Action | Addressed | Evidence |
+|---|---|---|
+| ✅ Split memberships into a dedicated table, role read-only on it | **AR-04**, T-06, R-06, S-1 | `test_membership_table_isolation.py`; 3 of 4 policy assertions fail against the pre-split policy |
+| ✅ Hashed dependency lock + CI drift gate | **L4**, S-2, SR-S11 | 21 packages pinned with hashes; drift gate verified to fail on a stale lock |
+| ✅ Three architectural fitness functions | S-8, S-9, S-10 | `test_code_invariants.py`; 4 of 9 fail against `v1-pre-review` |
+
+### Outstanding
+
 | # | Action | Addresses | Why this priority |
 |---|---|---|---|
-| **1** | **Split memberships into a separate DynamoDB table** and grant the execution role read-only access to it | AR-04, T-06, S-1 | The only remaining Medium residual risk with a clean architectural fix. IAM cannot constrain a sort-key prefix, so no policy change can substitute |
-| **2** | **Deploy to a sandbox AWS account and run the AWS-gated tests** | L1, L2, L5 | Converts 11 skipped tests into real evidence and closes the largest assurance gap. Also the only way to run `terraform validate/plan` and confirm `Scan` is genuinely denied |
-| **3** | **Push to GitHub and observe the pipeline run** | L3 | CodeQL has produced no results. Until the workflow executes, the gating is reviewed rather than verified |
-| **4** | **Generate a dependency lock file** | L4, S-2 | Cheap, closes the reproducibility gap. Keep `pip-audit` on the resolved tree so advisories still surface |
-| **5** | **Mandate MFA for the administrator role; shorten production access-token TTL** | AR-03 | Narrows the replay window on the highest-privilege accounts. Configurable today; needs a product decision |
-| **6** | **Add WAF rate-based rules and per-tenant usage plans** | AR-05, T-13 | The only control that stops one tenant's flood becoming everyone's outage. Needs a deployment to tune |
-| **7** | **Independent security review by another engineer** | L7 | The methodological limitation no amount of self-review can close |
-| **8** | Add the cheap CI guards: `.scan(` lint rule, `enforce()` coverage assertion, request-model schema test | S-8, S-9, S-10 | Each converts a review-maintained invariant into an automated one |
-| **9** | CloudWatch Logs data-protection policy; log archival to S3 with Object Lock | S-5, S-6, SR-L12 | Second independent layer on the only Low-residual control with no backstop |
-| **10** | Load and fuzz testing | L8 | Turns T-13 from reasoning into measurement |
+| **1** | **Deploy to a sandbox AWS account and run the 13 AWS-gated tests** | L1, L2, L5 | Now the single largest assurance gap. Converts 13 skipped tests into real evidence, and is the only way to run `terraform validate/plan` and confirm `Scan` and the membership-write `Deny` are genuinely enforced |
+| **2** | **Push to GitHub and observe the pipeline run** | L3 | CodeQL has produced no results at all. Until the workflow executes, the gating is reviewed rather than verified |
+| **3** | **Independent security review by another engineer** | L7 | The methodological limitation no amount of self-review can close, and now the highest-value remaining item that needs no infrastructure |
+| **4** | **Mandate MFA for the administrator role; shorten production access-token TTL** | AR-03 | Narrows the replay window on the highest-privilege accounts. Configurable today; needs a product decision |
+| **5** | **Add WAF rate-based rules and per-tenant usage plans** | AR-05, T-13 | The only control that stops one tenant's flood becoming everyone's outage. Needs a deployment to tune |
+| **6** | **Implement and secure the membership provisioning process** | L9 | Now the dominant residual exposure for T-06: the authorization source of truth is populated by a process that does not exist yet, so its own security is unassessed |
+| **7** | CloudWatch Logs data-protection policy; log archival to S3 with Object Lock | S-5, S-6, SR-L12 | Second independent layer on the only Low-residual control with no backstop |
+| **8** | Load and fuzz testing | L8 | Turns T-13 from reasoning into measurement |
+| **9** | CloudTrail data events on the membership table | T-06 | Forensic coverage of the authorization source of truth |
 
 ---
 

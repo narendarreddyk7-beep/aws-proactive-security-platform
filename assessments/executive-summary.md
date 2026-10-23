@@ -22,7 +22,7 @@ Everything below is organised around that sentence.
 ## What was done
 
 The system was designed, built, threat-modelled, security-reviewed, remediated and
-re-tested. The review covered 2,058 statements of application code, 10 Terraform files and
+re-tested. The review covered 2,064 statements of application code, 10 Terraform files and
 3 IAM policy documents, against a 60-item checklist derived from a 16-threat STRIDE model.
 
 ---
@@ -54,11 +54,11 @@ the broken code. That is the difference between "we fixed it" and "we believe we
 | Evidence | Result |
 |---|---|
 | Security tests run against the **pre-fix** code | **84 failed** |
-| The same tests against the **current** code | **176 passed** |
-| Full test suite | **584 passed**, 11 skipped (need a live AWS account) |
+| The same tests against the **current** code | **195 passed** |
+| Full test suite | **603 passed**, 13 skipped (need a live AWS account) |
 | Code coverage | 89% |
 | Automated security scanners (5 tools) | 0 findings at actionable severity |
-| Full security pipeline | **15 of 15 stages pass** |
+| Full security pipeline | **16 of 16 stages pass** |
 
 Isolation between customers is now **structural rather than procedural**: the database
 query is physically scoped to the calling customer, the cloud permission to read across all
@@ -88,14 +88,19 @@ Three gaps are worth leadership's attention, because they bound the confidence a
 | Residual risk level | Count |
 |---|---|
 | Critical / High | **0** |
-| Medium | 3 |
-| Low | 13 |
+| Medium | 2 |
+| Low | 14 |
 
-The three Medium risks are consciously accepted, each with a named owner and review date:
-**stolen-login-token replay** (inherent to how bearer tokens work industry-wide),
-**one shared service means one customer's traffic flood affects everyone** (availability,
-not confidentiality), and **one cloud permission is scoped to the whole table rather than
-to one record type** — which has a clean architectural fix, and it is our top priority.
+The third Medium risk — *one cloud permission scoped to the whole table rather than to one
+record type* — **has since been fixed** (23 October). The permissions data now lives in its
+own table, so the service can read who is allowed to do what but cannot change it. That
+required splitting the table rather than editing a permission, because the cloud platform
+cannot express the narrower rule.
+
+The two remaining Medium risks are consciously accepted, each with a named owner and review
+date, and both are **inherent rather than unfixed**: **stolen-login-token replay** (a
+property of how bearer tokens work industry-wide) and **one shared service means one
+customer's traffic flood affects everyone** (availability, not confidentiality).
 
 ---
 
@@ -103,11 +108,12 @@ to one record type** — which has a clean architectural fix, and it is our top 
 
 | # | Action | Why |
 |---|---|---|
-| 1 | Separate the permissions data into its own table | Closes the last Medium confidentiality risk. No policy change can substitute — the cloud platform cannot express the needed constraint |
-| 2 | Deploy to a sandbox AWS account and run the 11 skipped tests | Closes the largest assurance gap in one step |
-| 3 | Run the pipeline on real infrastructure | One scanner (CodeQL) has produced no results at all until this happens |
+| ~~1~~ | ~~Separate the permissions data into its own table~~ | **Done 23 October.** Closed the last Medium confidentiality risk |
+| 1 | Deploy to a sandbox AWS account and run the 13 skipped tests | Now the largest assurance gap, closed in one step |
+| 2 | Run the pipeline on real infrastructure | One scanner (CodeQL) has produced no results at all until this happens |
+| 3 | Commission an independent review | The one limitation no amount of self-review can close |
 | 4 | Require two-factor authentication for customer administrators | Narrows the window on the highest-privilege accounts |
-| 5 | Commission an independent review | The one limitation no amount of self-review can close |
+| 5 | Build and secure the process that populates the permissions data | It does not exist yet, so its own security is unassessed — now the main exposure left on that risk |
 
 ---
 

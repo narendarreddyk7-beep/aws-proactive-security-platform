@@ -39,7 +39,7 @@ python -m pytest tests/security -p no:cacheprovider -q \
   > "$OLDPWD/reports/regression-v1-pre-review.txt" 2>&1
 cd - && git worktree remove --force /tmp/v1check
 
-# Expect: 84 failed, 92 passed
+# Expect: 93 failed, 102 passed
 tail -1 reports/regression-v1-pre-review.txt
 
 # Failures by module

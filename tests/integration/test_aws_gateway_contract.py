@@ -208,3 +208,91 @@ def test_execution_role_cannot_read_another_table() -> None:
         "AccessDeniedException",
         "AccessDenied",
     )
+
+
+@requires_table
+def test_execution_role_is_explicitly_denied_membership_writes() -> None:
+    """Live verification of the T-06 / AR-04 boundary.
+
+    The membership record is the authoritative source of a caller's role, so
+    write access to it is tenant takeover. Memberships therefore live in their
+    own table and the execution role is granted ``dynamodb:GetItem`` on it and
+    no write action at all, with an explicit ``Deny`` on every write.
+
+    ``tests/security/test_membership_table_isolation.py`` asserts that against
+    the *committed policy document*, which is what makes it testable with no
+    AWS account. This asserts it against **real IAM evaluation**, which is the
+    only place the question is actually settled: a policy that reads correctly
+    can still be evaluated differently once boundaries, SCPs and resource
+    policies combine.
+
+    Uses ``iam:SimulatePrincipalPolicy``, so it needs only read access and
+    never attempts the write itself.
+    """
+    import boto3
+
+    role_arn = os.environ.get("SUPPORT_API_ROLE_ARN")
+    membership_table_arn = os.environ.get("SUPPORT_API_MEMBERSHIP_TABLE_ARN")
+    if not role_arn or not membership_table_arn:
+        pytest.skip(
+            "SUPPORT_API_ROLE_ARN and SUPPORT_API_MEMBERSHIP_TABLE_ARN are required "
+            "to verify the membership-write denial against real IAM."
+        )
+
+    iam = boto3.client("iam")
+    write_actions = [
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:BatchWriteItem",
+    ]
+
+    response = iam.simulate_principal_policy(
+        PolicySourceArn=role_arn,
+        ActionNames=write_actions,
+        ResourceArns=[membership_table_arn],
+    )
+
+    decisions = {
+        result["EvalActionName"]: result["EvalDecision"] for result in response["EvaluationResults"]
+    }
+
+    # "explicitDeny" rather than merely "implicitDeny": an explicit Deny cannot
+    # be overridden by any later Allow, so the boundary survives someone
+    # attaching a broad policy to this role.
+    unexpected = {
+        action: decision for action, decision in decisions.items() if decision != "explicitDeny"
+    }
+    assert not unexpected, (
+        "these writes to the membership table are not explicitly denied: "
+        f"{unexpected}. This is risk T-06 -- write access to the authorization "
+        "source of truth is tenant takeover."
+    )
+
+
+@requires_table
+def test_execution_role_can_still_read_memberships() -> None:
+    """The positive control for the test above.
+
+    A policy that denies everything would pass the denial test while breaking
+    authorization entirely, so assert the read the application actually needs
+    is still allowed.
+    """
+    import boto3
+
+    role_arn = os.environ.get("SUPPORT_API_ROLE_ARN")
+    membership_table_arn = os.environ.get("SUPPORT_API_MEMBERSHIP_TABLE_ARN")
+    if not role_arn or not membership_table_arn:
+        pytest.skip("SUPPORT_API_ROLE_ARN and SUPPORT_API_MEMBERSHIP_TABLE_ARN are required.")
+
+    iam = boto3.client("iam")
+    response = iam.simulate_principal_policy(
+        PolicySourceArn=role_arn,
+        ActionNames=["dynamodb:GetItem"],
+        ResourceArns=[membership_table_arn],
+    )
+    decision = response["EvaluationResults"][0]["EvalDecision"]
+    assert decision == "allowed", (
+        f"the role cannot read memberships (decision: {decision}); "
+        "authorization would fail closed for every request"
+    )

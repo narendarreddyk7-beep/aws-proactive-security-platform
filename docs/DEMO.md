@@ -383,12 +383,12 @@ python -m pytest -q
 ```
 
 ```
-584 passed, 11 skipped, 148 warnings in 11.44s
+603 passed, 13 skipped, 148 warnings in 11.44s
 ```
 
 ```bash
 python -m pytest -m regression -q --no-header
-# 122 passed
+# 141 passed
 ```
 
 ### The before/after proof
@@ -404,14 +404,14 @@ python -m pytest tests/security -q
 ```
 
 ```
-84 failed, 92 passed, 78 warnings in 6.75s
+93 failed, 102 passed, 78 warnings in 6.75s
 ```
 
 ```bash
 cd - && git worktree remove --force /tmp/v1check
 ```
 
-**84 failures against the vulnerable code; 176 passes against the fixed code.** That is the
+**93 failures against the vulnerable code; 195 passes against the fixed code.** That is the
 difference between a test suite and a claim.
 
 ---
@@ -423,7 +423,7 @@ python -m checkov.main -d infrastructure/ --framework terraform --compact --quie
 ```
 
 ```
-Passed checks: 134, Failed checks: 0, Skipped checks: 12
+Passed checks: 137, Failed checks: 0, Skipped checks: 12
 ```
 
 All 12 skips are inline, scoped to one check on one resource, and individually justified:
@@ -530,7 +530,7 @@ cross-run status tracking (`new` / `open` / `overdue` / `newly resolved`).
 ```
 
 ```
-Passed: 15   Failed: 0
+Passed: 16   Failed: 0
 Reports: reports/
 ```
 
@@ -558,7 +558,7 @@ Stated so the demo is not mistaken for more than it is:
 
 | Not demonstrated | Why | Where it is covered |
 |---|---|---|
-| Real JWT validation | There is no API Gateway on a laptop; validation is deliberately the gateway's job | 11 skipped tests in `tests/integration/test_aws_gateway_contract.py` |
+| Real JWT validation | There is no API Gateway on a laptop; validation is deliberately the gateway's job | 13 skipped tests in `tests/integration/test_aws_gateway_contract.py` |
 | Real Cognito sign-in | No user pool | `cognito.tf`, reviewed only |
 | Real IAM enforcement | The local run has no IAM at all. `dynamodb:Scan` being denied is unproven | Limitation L1 |
 | Real DynamoDB semantics | `moto` emulates conditional writes and consistency | Limitation L5 |

@@ -114,6 +114,7 @@ explicitly skipped rather than silently absent.
 | SR-C2 | Data-plane permissions are scoped to the table ARN and its GSI; log permissions to the function's own log group. | T-16 | ASVS 1.2.2 | `iam_policy_checker.py` | ✅ |
 | SR-C3 | Actions the application does not perform are omitted, so a new need fails closed and goes through review. | T-16 | ASVS 1.2.2 | Policy review; `policies/lambda-execution.json` | ✅ |
 | SR-C4 | Explicit `Deny` on `dynamodb:Scan`, destructive table operations, and credential/policy self-modification. | T-06, T-16 | ASVS 1.2.2 | `policies/lambda-execution.json` | ✅ |
+| SR-C4b | The authorization source of truth (memberships) is in a **separate table** with a read-only grant and an explicit `Deny` on every write. | T-06 | ASVS 1.2.2, 4.1.1 | `tests/security/test_membership_table_isolation.py` | ✅ |
 | SR-C5 | A permissions boundary caps the execution role. | T-16 | ASVS 1.2.2 | `iam.tf` | ✅ |
 | SR-C6 | `AdministratorAccess` and equivalent are never used. | T-16 | ASVS 1.2.2 | `iam_policy_checker.py` (rule IAM001) | ✅ |
 | SR-C7 | The role trust policy constrains the service principal against confused-deputy abuse. | T-16 | ASVS 1.2.2 | `iam_policy_checker.py` (rules IAM007, IAM008) | ✅ |
@@ -138,14 +139,14 @@ explicitly skipped rather than silently absent.
 | SR-S1 | Static analysis (Bandit + Ruff `S` rules) runs on every pull request and gates on medium severity and above. | — | ASVS 14.2.1 | `.github/workflows/security-ci.yml`; local run 2026-10-23 | ✅ |
 | SR-S2 | Semantic code scanning (CodeQL) runs on every pull request. | — | ASVS 14.2.1 | `.github/workflows/security-ci.yml` | 🟡 |
 | SR-S3 | Dependency vulnerability scanning (`pip-audit`) runs on every pull request against runtime and dev trees. | — | ASVS 14.2.1, A06:2021 | Local run: 21 packages, 0 vulnerabilities | ✅ |
-| SR-S4 | Infrastructure-as-code scanning (Checkov) runs on every pull request. | — | ASVS 14.2.1 | Local run: 134 passed, 0 failed, 12 justified skips | ✅ |
+| SR-S4 | Infrastructure-as-code scanning (Checkov) runs on every pull request. | — | ASVS 14.2.1 | Local run: 137 passed, 0 failed, 12 justified skips | ✅ |
 | SR-S5 | The project's own IAM analyzer gates the policy documents that actually deploy. | T-16 | ASVS 1.2.2 | Local run: 0 blocking findings | ✅ |
 | SR-S6 | Every confirmed security finding has a regression test that fails against the vulnerable code. | — | ASVS 14.2.1 | `assessments/regression-evidence.md` | ✅ |
 | SR-S7 | Security findings are never auto-suppressed to make CI pass; a suppression is a targeted, justified, reviewable exception. | — | ASVS 14.2.1 | 12 inline Checkov skips, each with a written justification | ✅ |
 | SR-S8 | CI uses least-privilege `GITHUB_TOKEN` permissions and pinned action references. | — | ASVS 14.1.4 | `.github/workflows/security-ci.yml` | ✅ |
 | SR-S9 | No long-lived AWS credentials in source control or CI; deployment uses OIDC. | — | ASVS 14.1.4 | `.gitignore`; documented in `docs/AWS_DEPLOYMENT.md` | ✅ |
 | SR-S10 | Unreviewed pull requests cannot deploy, and third-party pull requests do not execute with secrets. | — | ASVS 14.1.4 | `.github/workflows/security-ci.yml` (`pull_request` trigger, no deploy job) | ✅ |
-| SR-S11 | Dependencies are pinned to exact versions in a lock file for reproducible builds. | — | ASVS 14.2.4 | — | ⬜ |
+| SR-S11 | Dependencies are pinned to exact versions in a lock file for reproducible builds. | — | ASVS 14.2.4 | `application/requirements.lock` (21 packages, sha256 hashes); build installs with `--require-hashes`; CI gate on lock drift | ✅ |
 
 ---
 

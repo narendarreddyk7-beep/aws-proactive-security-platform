@@ -2,7 +2,7 @@
 
 Status of every confirmed finding from [`security-findings.md`](security-findings.md).
 
-**Last updated:** 2026-10-23 · **Verified by:** full local pipeline run, 15/15 stages passing.
+**Last updated:** 2026-10-23 · **Verified by:** full local pipeline run, 16/16 stages passing.
 
 | Lifecycle state | Meaning |
 |---|---|
@@ -34,7 +34,7 @@ Status of every confirmed finding from [`security-findings.md`](security-finding
 | F-014 | Missing HTTP security response headers | Low | ✅ | ✅ | ✅ | ✅ | Low | `c9ec2b4` |
 | F-015 | Unconditional writes replace records silently | Low | ✅ | ✅ | ✅ | ✅ | Low | `c9ec2b4` |
 
-**15 of 15 remediated and retested. 0 open. 0 silently deferred.**
+**16 of 16 remediated and retested. 0 open. 0 silently deferred.**
 
 > ⚠️ **F-005 is `Validated: partial`.** The pre-remediation IAM policy is not preserved in
 > git, so there is no before/after test diff. What *is* demonstrated is that the analyzer
@@ -83,22 +83,24 @@ Relevant references:
 
 ## 3. Recommended safeguards not yet implemented
 
-Raised during remediation and deliberately **not** built. Tracked here rather than quietly
-dropped, and prioritised in
+Raised during remediation. Tracked here rather than quietly dropped, and prioritised in
 [`final-security-assessment.md`](final-security-assessment.md) §Next steps.
+
+**Five were implemented on 2026-10-23** and are struck through below with their evidence.
+The rest remain deliberately unbuilt, each with a stated reason.
 
 | # | Safeguard | Related | Why deferred | Priority |
 |---|---|---|---|---|
-| S-1 | Split memberships into a **separate table** so the execution role can hold read-only rights to them | F-005, T-06, O-4 | Architectural change. IAM cannot constrain a sort-key prefix (`dynamodb:LeadingKeys` is partition-key only), so this is the only clean fix | **P1** |
-| S-2 | Dependency lock file (`pip-compile` → `requirements.lock`) | O-1, SR-S11 | Lower bounds currently let `pip-audit` surface advisories rather than masking them; the reproducibility gap remains | **P2** |
+| ~~S-1~~ | ~~Split memberships into a **separate table** so the execution role can hold read-only rights to them~~ | F-005, T-06, O-4 | ✅ **DONE 2026-10-23.** Dedicated `aws_dynamodb_table.memberships`; role holds `GetItem` only, with an explicit `Deny` on every write and the boundary capped the same way. `tests/security/test_membership_table_isolation.py` (10 tests); 3 of 4 policy assertions fail against the pre-split policy. Closes AR-04 / T-06 / R-06 | ✅ |
+| ~~S-2~~ | ~~Dependency lock file (`pip-compile` → `requirements.lock`)~~ | O-1, SR-S11 | ✅ **DONE 2026-10-23.** `application/requirements.lock`, 21 packages with sha256 hashes; Lambda build installs with `--require-hashes`; `pip-audit` audits the lock; CI gate recompiles and diffs, verified to fail on a stale lock. Closes L4 / SR-S11 | ✅ |
 | S-3 | AWS WAF rate-based rules + per-tenant usage plans | T-13, AR-05 | Needs a deployment to tune; adds cost | **P2** |
 | S-4 | Mandatory MFA for the administrator role | T-02, AR-03 | Product-owner policy decision; configurable today | **P2** |
 | S-5 | CloudWatch Logs data-protection policy (managed data identifiers) | F-007 | Second independent layer; the field allow-list is the primary control and is verified | P3 |
 | S-6 | Log archival to S3 with Object Lock (tamper-evident) | T-07, SR-L12 | Needs a deployment and a retention decision | P3 |
 | S-7 | Optimistic-concurrency version attribute on tickets | F-015, O-3 | Correctness improvement; conditional writes already prevent replacement and resurrection | P3 |
-| S-8 | CI lint rule failing on the literal `.scan(` in `application/` | F-006 | Cheap; the recording-table test already asserts it behaviourally | P3 |
-| S-9 | CI assertion that every principal-taking service method calls `enforce()` | F-003 | Currently guaranteed by review plus the role × operation matrix | P3 |
-| S-10 | CI schema test forbidding server-controlled field names in request models | F-004 | Currently guaranteed by `extra="forbid"` plus regression tests | P3 |
+| ~~S-8~~ | ~~CI lint rule failing on the literal `.scan(` in `application/`~~ | F-006 | ✅ **DONE 2026-10-23.** AST-based, in `test_code_invariants.py`, covering the dynamic back doors too. Fails against `v1-pre-review` at `ticket_repository.py:73` | ✅ |
+| ~~S-9~~ | ~~CI assertion that every principal-taking service method calls `enforce()`~~ | F-003 | ✅ **DONE 2026-10-23.** AST check over every principal-taking service method, with a justification-required exemption map. Fails against `v1-pre-review` on `get_ticket` and `update_ticket` | ✅ |
+| ~~S-10~~ | ~~CI schema test forbidding server-controlled field names in request models~~ | F-004 | ✅ **DONE 2026-10-23.** AST check that no request model declares a server-controlled field and that all forbid extras. Fails against `v1-pre-review` on `TicketCreateRequest.organization_id` and both models' missing `extra="forbid"` | ✅ |
 | S-11 | Per-principal rate limiting on 404 responses | F-008 | Blunts enumeration; needs deployment-level tuning | P3 |
 | S-12 | IAM Access Analyzer policy validation in CI | F-005 | Requires AWS credentials in CI via OIDC | P3 |
 | S-13 | Lambda code signing (AWS Signer) | Checkov `CKV_AWS_272` | Requires a Signer profile and a CI signing step | P3 |
@@ -112,20 +114,23 @@ command and its real result.
 
 | Check | Command | Result | Date |
 |---|---|---|---|
-| Regression — vulnerable code | `pytest tests/security` @ `v1-pre-review` | **84 failed**, 92 passed | 2026-10-23 |
-| Regression — fixed code | `pytest tests/security` @ `HEAD` | **176 passed** | 2026-10-23 |
-| Full suite | `pytest -q` | **584 passed, 11 skipped** | 2026-10-23 |
-| Coverage | `pytest --cov` | **89%** (2,058 statements) | 2026-10-23 |
+| Regression — vulnerable code | `pytest tests/security` @ `v1-pre-review` | **93 failed**, 102 passed | 2026-10-23 |
+| New invariant guards vs. vulnerable code | `pytest test_code_invariants.py` @ `v1-pre-review` | **4 of 9 failed** | 2026-10-23 |
+| Membership policy assertions vs. pre-split policy | policy assertions replayed | **3 of 4 failed** | 2026-10-23 |
+| Lock drift gate vs. a stale lock | package added without recompiling | **correctly failed** (exit 1) | 2026-10-23 |
+| Regression — fixed code | `pytest tests/security` @ `HEAD` | **195 passed** | 2026-10-23 |
+| Full suite | `pytest -q` | **603 passed, 13 skipped** | 2026-10-23 |
+| Coverage | `pytest --cov` | **89%** (2,064 statements) | 2026-10-23 |
 | Lint | `ruff check .` | All checks passed | 2026-10-23 |
 | Format | `ruff format --check .` | 64 files already formatted | 2026-10-23 |
 | SAST | `bandit -c pyproject.toml -ll` | 0 at medium+; 0 `nosec` | 2026-10-23 |
 | SCA | `pip-audit` | 21 packages, **0 vulnerabilities** | 2026-10-23 |
-| IaC scan | `checkov -d infrastructure/` | 134 passed, **0 failed**, 12 justified skips | 2026-10-23 |
+| IaC scan | `checkov -d infrastructure/` | 137 passed, **0 failed**, 12 justified skips | 2026-10-23 |
 | IAM policy analysis | `iam_policy_checker.py` on `policies/` | 1 INFO, **0 blocking** | 2026-10-23 |
 | IAM gate self-test | insecure fixture must be rejected | Confirmed rejected | 2026-10-23 |
 | HCL reference lint | `scripts/validate_terraform.py` | Pass (root + module) | 2026-10-23 |
 | Finding aggregation | `finding_triage.py` on 4 reports | 2 open (P4), 0 duplicates | 2026-10-23 |
-| Full pipeline | `./scripts/run_security_checks.sh` | **15/15 stages pass** | 2026-10-23 |
+| Full pipeline | `./scripts/run_security_checks.sh` | **16/16 stages pass** | 2026-10-23 |
 | `terraform fmt` / `validate` / `plan` | — | **NOT RUN** — binary unavailable (L2) | — |
 | Live AWS behaviour | — | **NOT RUN** — no deployment (L1) | — |
 | GitHub Actions workflow | — | **NOT RUN** — no remote repository (L3) | — |

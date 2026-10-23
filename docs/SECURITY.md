@@ -98,6 +98,7 @@ about identity, tenancy or privilege.
 | Explicit `Deny` on destructive actions | `Scan`, `DeleteItem`, `DeleteTable`, … | ✅ policy review |
 | Explicit `Deny` on self-modification | `iam:*`, `sts:AssumeRole`, `kms:ScheduleKeyDeletion`, `logs:Delete*` | ✅ policy review |
 | Permissions boundary | `aws_iam_policy.lambda_boundary` | ✅ `iam.tf` |
+| **Membership table is read-only to the role** | `GetItem` only + explicit `Deny` on every write; boundary capped the same way | ✅ `test_membership_table_isolation.py` (parses the deployed policy) |
 | Confused-deputy guard on the trust policy | source-ARN condition | ✅ `iam_policy_checker.py` IAM008 |
 | KMS use condition-constrained | `kms:ViaService` | ✅ policy review |
 | Bounded timeout, memory, concurrency | `lambda.tf` | ✅ Checkov |
@@ -133,7 +134,7 @@ Triage procedure: [`../runbooks/authorization-alert-triage.md`](../runbooks/auth
 ## 3. The CI security gate
 
 `.github/workflows/security-ci.yml`. Mirrored locally by `scripts/run_security_checks.sh`,
-which passes **15/15 stages**.
+which passes **16/16 stages**.
 
 | Stage | Tool | Gating rule |
 |---|---|---|
@@ -142,7 +143,8 @@ which passes **15/15 stages**.
 | 1c | Import + compile check | failure fails |
 | 2a | CodeQL (`security-extended`) | alerts surface in the Security tab |
 | 2b | Bandit | **medium severity and above** fails |
-| 2c | pip-audit (runtime, `--strict`) | **any** known vulnerability fails |
+| 2c | pip-audit (lock, `--strict`) | **any** known vulnerability fails |
+| 2c | **Lock drift** — recompile and diff | a stale lock fails, with the regeneration command |
 | 2c | pip-audit (dev) | **any** known vulnerability fails |
 | 3a | `terraform fmt -check` | any diff fails |
 | 3b | `terraform validate` | failure fails |

@@ -29,11 +29,11 @@ evidence that it works.
 | 3 | **Data-flow analysis** | `threat-model/data-flow.md` | 4 Mermaid diagrams + a 10-row cross-boundary flow table naming the enforcing file for each | ✅ |
 | 4 | **Security requirements engineering** | `threat-model/security-requirements.md` | 91 testable requirements mapped to ASVS 4.0.3 / OWASP Top 10 / API Top 10; 76 verified, 11 AWS-gated, 4 not implemented | ✅ |
 | 5 | **Risk register and prioritisation** | `threat-model/risk-register.csv` | 16 rows × 19 columns: inherent vs residual rating, status, owner, mitigation, next action, review date | ✅ |
-| 6 | **Manual secure code review** | `assessments/code-review-checklist.md` | 10-domain, 60-item checklist applied to 2,058 statements; every item carries a verdict; methodology and its limitations disclosed | ✅ |
+| 6 | **Manual secure code review** | `assessments/code-review-checklist.md` | 10-domain, 60-item checklist applied to 2,064 statements; every item carries a verdict; methodology and its limitations disclosed | ✅ |
 | 7 | **Vulnerability identification** | `assessments/security-findings.md` | **15 confirmed findings** (1 critical, 4 high, 7 medium, 3 low), each with file/line evidence from `v1-pre-review`, CWE and OWASP mapping | ✅ |
 | 8 | **Separating confirmed from theoretical** | Same, §Observations | 7 observations (O-1–O-7) recorded separately and **excluded from finding counts** | ✅ |
 | 9 | **Vulnerability remediation** | `git diff v1-pre-review v2-remediated` | 14 files, +1,744 / −312; every finding mapped to the files that fixed it in `assessments/remediation-tracker.md` | ✅ |
-| 10 | **Remediation verification** | `assessments/regression-evidence.md` | Security suite against vulnerable code: **84 failed, 92 passed**. Against fixed code: **176 passed**. Verbatim output captured | ✅ |
+| 10 | **Remediation verification** | `assessments/regression-evidence.md` | Security suite against vulnerable code: **93 failed, 102 passed**. Against fixed code: **195 passed**. Verbatim output captured | ✅ |
 | 11 | **Secure Python development** | `application/app/` — 24 modules, type-hinted, layered | `ruff check` clean (incl. `S` + `ANN` rule sets); Bandit 0 findings at medium+; 0 `nosec` | ✅ |
 | 12 | **HTTP / REST API security** | `app/security/http.py`, `app/main.py`, `app/routes/` | 8 security headers on **every** response incl. 500s; uniform error envelope; `test_api_behaviour.py` (24 tests) | ✅ |
 | 13 | **Authentication design** | `app/security/identity.py` + API Gateway JWT authorizer | Identity read only from verified claims; `test_authentication.py` (26 tests). Gateway-level validation is 🟡 | 🟡 |
@@ -43,8 +43,8 @@ evidence that it works.
 | 17 | **Secure error handling** | `app/main.py` exception handlers | `test_error_handling.py` — no trace, no exception text, no echoed values, uniform envelope across 7 status codes | ✅ |
 | 18 | **Sensitive-data protection in logs** | `app/observability/logging.py` field allow-list | `test_logging_and_data_protection.py` (10 tests); live demo shows **0 occurrences** of ticket content in the log stream | ✅ |
 | 19 | **Security logging and auditability** | Structured JSON, 6 security event types, request-id correlation | Live transcript in `docs/DEMO.md` §5 showing `authorization_denied` with actor, target and machine-readable reason | ✅ |
-| 20 | **AWS IAM and least privilege** | `infrastructure/terraform/iam.tf` + `policies/*.json` | Enumerated actions only; 2 explicit `Deny` statements; permissions boundary; `iam_policy_checker.py` → **1 INFO, 0 blocking**. Live enforcement 🟡 | 🟡 |
-| 21 | **Infrastructure as code security** | 10 `.tf` files + 1 module | Checkov: **134 passed, 0 failed, 12 justified skips**. `terraform validate` not run (L2) | 🟡 |
+| 20 | **AWS IAM and least privilege** | `infrastructure/terraform/iam.tf` + `policies/*.json` | Enumerated actions; explicit `Deny` statements; permissions boundary; and the authorization source of truth in its **own table with a read-only grant**. `iam_policy_checker.py` → **1 INFO, 0 blocking**; the policy itself asserted by `test_membership_table_isolation.py`. Live enforcement 🟡 | 🟡 |
+| 21 | **Infrastructure as code security** | 10 `.tf` files + 1 module | Checkov: **137 passed, 0 failed, 12 justified skips**. `terraform validate` not run (L2) | 🟡 |
 | 22 | **Secure-by-default configuration** | `app/config.py` | Every default is the safe value; fail-closed guard on the identity source; `test_config.py` (25 tests) | ✅ |
 | 23 | **Custom security automation (1)** | `security-automation/iam_policy_checker.py` — 1,586 lines, 11 rules | 59 unit tests; `confirmed` vs `needs_context` confidence; documents its own limitations; **CI gate self-test proves it rejects the insecure fixture** | ✅ |
 | 24 | **Custom security automation (2)** | `security-automation/finding_triage.py` — 1,927 lines | 142 unit tests; normalises 5 tool formats + ASFF; stable dedup; risk scoring; owner rules; cross-run status tracking; JSON + Markdown | ✅ |
@@ -80,7 +80,7 @@ Every 🟡 traces to one of three external blockers:
 
 | Blocker | Affects | Fix |
 |---|---|---|
-| **L1** — no AWS account used | 13, 20, 21, 31, 33 | Deploy to a sandbox and run the 11 AWS-gated tests |
+| **L1** — no AWS account used | 13, 20, 21, 31, 33 | Deploy to a sandbox and run the 13 AWS-gated tests |
 | **L2** — Terraform binary not installable (`releases.hashicorp.com` outside the egress allow-list) | 21 | Run `terraform fmt`/`validate`/`plan` anywhere Terraform is available |
 | **L3** — no remote repository | 26, 28, 29 | Push and observe one pipeline run |
 
@@ -90,12 +90,12 @@ Every 🟡 traces to one of three external blockers:
 
 | Standard | Where | Coverage |
 |---|---|---|
-| **OWASP Top 10 (2021)** | `security-findings.md` App. B | A01, A03, A04, A05, A07, A09 addressed by findings. A02 (crypto) via KMS/TLS configuration. A06 via pip-audit. A08 (integrity) partial — no lock file (S-2). A10 (SSRF) discarded with reasons |
+| **OWASP Top 10 (2021)** | `security-findings.md` App. B | A01, A03, A04, A05, A07, A09 addressed by findings. A02 (crypto) via KMS/TLS configuration. A06 via pip-audit. A08 (integrity) addressed — hashed lock file installed with `--require-hashes`. A10 (SSRF) discarded with reasons |
 | **OWASP API Security Top 10 (2023)** | Same | API1, API2, API3, API4, API5, API6, API8 addressed. API7 (SSRF) n/a — no outbound requests. API9/API10 (inventory, unsafe API consumption) not applicable at this scope |
 | **OWASP ASVS 4.0.3** | `security-requirements.md` | 91 requirements mapped across V1, V2, V3, V4, V5, V6, V7, V8, V9, V11, V14 |
 | **STRIDE** | `threat-model.md` | All 6 categories, applied per data flow with discards documented |
 | **CWE** | `security-findings.md` | 22 distinct CWEs across the 15 findings |
-| **CIS / AWS Foundational Security Best Practices** | Checkov + Security Hub module | 134 Checkov checks passing; CSPM pipeline implemented but Security Hub not enabled |
+| **CIS / AWS Foundational Security Best Practices** | Checkov + Security Hub module | 137 Checkov checks passing; CSPM pipeline implemented but Security Hub not enabled |
 
 ---
 

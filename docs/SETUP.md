@@ -44,10 +44,10 @@ python -m pytest -q
 Expected:
 
 ```
-584 passed, 11 skipped
+603 passed, 13 skipped
 ```
 
-The 11 skips are correct and expected — they require a deployed AWS environment and name
+The 13 skips are correct and expected — they require a deployed AWS environment and name
 the missing prerequisite. See [`TESTING.md`](TESTING.md).
 
 ---
@@ -126,7 +126,7 @@ The whole pipeline, in the same order and with the same gating as CI:
 ```
 
 ```
-Passed: 15   Failed: 0
+Passed: 16   Failed: 0
 ```
 
 | Flag | Effect |
@@ -169,7 +169,8 @@ variable degrades towards security rather than away from it (finding F-012).
 | `APP_ENVIRONMENT` | `dev` | `local` \| `test` \| `dev` \| `staging` \| `production`. Gates the local adapter and the interactive docs |
 | `APP_IDENTITY_SOURCE` | **`gateway`** | `gateway` \| `local_test`. The most security-relevant setting in the project |
 | `APP_DEBUG` | `False` | Never enable in a deployed environment |
-| `APP_TABLE_NAME` | `support-platform-local` | DynamoDB table |
+| `APP_TABLE_NAME` | `support-platform-dev` | Ticket table |
+| `APP_MEMBERSHIP_TABLE_NAME` | `support-platform-dev-memberships` | **Separate** membership table. The execution role holds `GetItem` on it and no write action, which is a boundary IAM can enforce — see `docs/ARCHITECTURE.md` D16 |
 | `APP_AWS_REGION` | `us-east-1` | Region for the DynamoDB client |
 | `APP_DYNAMODB_ENDPOINT_URL` | *(unset)* | Local DynamoDB override. Centralised in one factory so it cannot leak into a production path |
 | `APP_DEFAULT_PAGE_SIZE` | `25` | Default page size; hard ceiling is 100 |

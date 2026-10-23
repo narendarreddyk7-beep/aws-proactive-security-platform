@@ -16,7 +16,7 @@
 >
 > | Check | Result |
 > |---|---|
-> | Checkov parsed all 10 `.tf` files + the module | 134 passed, 0 failed, 12 justified skips |
+> | Checkov parsed all 10 `.tf` files + the module | 137 passed, 0 failed, 12 justified skips |
 > | Custom HCL reference linter (`scripts/validate_terraform.py`) | Pass — root and module |
 > | IAM policy analysis of the deployed policy documents | 1 INFO, 0 blocking |
 > | Hardcoded account ids / credential-shaped literals | None found |
@@ -111,7 +111,10 @@ terraform plan -var-file=../environments/dev/terraform.tfvars -out=tfplan
 **Read the plan.** Specifically confirm:
 
 - The IAM role policy matches `policies/lambda-execution.json` — enumerated actions, no
-  wildcards, the two `Deny` statements present.
+  wildcards, and every `Deny` statement present.
+- **The membership table grant is `dynamodb:GetItem` and nothing else**, with the
+  `DenyAllWritesToAuthorizationSourceOfTruth` statement present. If the plan shows any
+  write action against the membership table, stop — that is risk T-06.
 - The Cognito app client has **no** write access to `custom:organization_id` or
   `custom:role`. This is the control that stops self-granted privilege (finding F-002); if
   the plan shows those as writable, stop.
@@ -139,7 +142,17 @@ aws lambda get-function-configuration \
   --function-name "$(terraform output -raw lambda_function_name)" \
   --query 'Environment.Variables.APP_IDENTITY_SOURCE'          # expect "gateway"
 
-# 3. Confirm the insecure-adapter alarm has never fired
+# 3. Confirm the role genuinely cannot write a membership (T-06 / AR-04).
+#    This SHOULD fail with AccessDeniedException. If it succeeds, stop.
+aws lambda invoke --function-name "$(terraform output -raw lambda_function_name)" \
+  --payload '{}' /dev/null 2>/dev/null || true
+aws iam simulate-principal-policy \
+  --policy-source-arn "$(terraform output -raw lambda_execution_role_arn)" \
+  --action-names dynamodb:PutItem \
+  --resource-arns "$(terraform output -raw membership_table_arn)" \
+  --query 'EvaluationResults[0].EvalDecision'          # expect "explicitDeny"
+
+# 4. Confirm the insecure-adapter alarm has never fired
 aws cloudwatch describe-alarm-history \
   --alarm-name "$(terraform output -raw security_dashboard_url >/dev/null; echo '<prefix>-insecure-identity-adapter')" \
   --max-records 5
@@ -148,12 +161,16 @@ aws cloudwatch describe-alarm-history \
 ### Create a user and seed a membership
 
 Authentication needs a Cognito user; authorization needs a **membership record**, which the
-API deliberately cannot create (see [`ARCHITECTURE.md`](ARCHITECTURE.md) §4).
+API deliberately cannot create — and, since 2026-10-23, deliberately *cannot be permitted*
+to create: memberships live in their own table and the execution role holds `GetItem` on it
+and no write action at all (see [`ARCHITECTURE.md`](ARCHITECTURE.md) D16). So the record
+below is written with **your** credentials, not the function's.
 
 ```bash
 POOL=$(terraform output -raw cognito_user_pool_id)
 CLIENT=$(terraform output -raw cognito_user_pool_client_id)
 TABLE=$(terraform output -raw dynamodb_table_name)
+MEMBERSHIP_TABLE=$(terraform output -raw membership_table_name)
 
 aws cognito-idp admin-create-user \
   --user-pool-id "$POOL" --username demo-member \
@@ -166,8 +183,9 @@ aws cognito-idp admin-set-user-password \
 SUB=$(aws cognito-idp admin-get-user --user-pool-id "$POOL" --username demo-member \
       --query 'UserAttributes[?Name==`sub`].Value' --output text)
 
-# The authoritative role lives HERE, not in the token (finding F-002)
-aws dynamodb put-item --table-name "$TABLE" --item "{
+# The authoritative role lives HERE, not in the token (finding F-002), and in the
+# MEMBERSHIP table, which the Lambda can read but not write (T-06 / AR-04).
+aws dynamodb put-item --table-name "$MEMBERSHIP_TABLE" --item "{
   \"PK\": {\"S\": \"USER#$SUB\"},
   \"SK\": {\"S\": \"MEMBERSHIP#org-acme\"},
   \"entity_type\": {\"S\": \"membership\"},
@@ -203,15 +221,19 @@ cd ../..
 export SUPPORT_API_BASE_URL="$API"
 export SUPPORT_API_ACCESS_TOKEN="$TOKEN"
 export SUPPORT_API_TABLE_NAME="$TABLE"
+export SUPPORT_API_ROLE_ARN="$(cd infrastructure/terraform && terraform output -raw lambda_execution_role_arn)"
+export SUPPORT_API_MEMBERSHIP_TABLE_ARN="$(cd infrastructure/terraform && terraform output -raw membership_table_arn)"
 # For the expiry test, capture a token and wait for it to expire
 export SUPPORT_API_EXPIRED_TOKEN="<an expired access token>"
 
 python -m pytest -m aws -v
 ```
 
-Those 11 tests cover exactly what cannot be proven locally: gateway rejection of expired
-and wrongly-issued tokens, and real IAM enforcement of the `Scan`/`DeleteItem` denials.
-Running them converts the project's largest assurance gap into evidence.
+Those 13 tests cover exactly what cannot be proven locally: gateway rejection of expired
+and wrongly-issued tokens, real IAM enforcement of the `Scan`/`DeleteItem` denials, and —
+most importantly — that writes to the **membership table** evaluate to `explicitDeny` under
+real IAM while `GetItem` still evaluates to `allowed` (T-06 / AR-04). Running them converts
+the project's largest assurance gap into evidence.
 
 ---
 
@@ -342,9 +364,9 @@ the interesting part:
 Not optional, and not yet done in this project:
 
 - [ ] **Run `terraform validate` and `plan`** — never done here (L2)
-- [ ] **Run the 11 AWS-gated tests** — the only way to verify D1 and the IAM denials
-- [ ] **Separate the membership table** so the execution role is read-only on it
-      (AR-04 / S-1 — the top-priority next step)
+- [ ] **Run the 13 AWS-gated tests** — the only way to verify D1 and the IAM denials
+- [x] ~~**Separate the membership table** so the execution role is read-only on it~~ —
+      done 2026-10-23 (AR-04 closed)
 - [ ] Remote state with encryption, versioning and locking
 - [ ] CI/CD deployment via **OIDC** — no long-lived AWS keys anywhere
 - [ ] AWS WAF rate-based rules in front of the API (AR-05)

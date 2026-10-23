@@ -76,7 +76,7 @@ This distinction is the difference between a finding and a worry.
 | `security-automation/*.py` — the tools themselves | Load/performance testing |
 | `tests/**` — reviewed for test quality, not as a finding source | Physical and personnel security |
 
-Lines reviewed: **2,058 statements** in the application and automation trees (per
+Lines reviewed: **2,064 statements** in the application and automation trees (per
 `coverage.xml`), plus 10 Terraform files and 3 IAM policy documents.
 
 ---
@@ -231,10 +231,10 @@ confirmed finding — there is no demonstrable weakness in the current code.
 
 | ID | Observation | Why not a finding | Disposition |
 |---|---|---|---|
-| O-1 | Dependencies use lower bounds (`>=`) with no lock file. | No vulnerable version is present today (`pip-audit` clean), and lower bounds mean `pip-audit` surfaces advisories rather than being masked by a stale pin. The reproducibility gap is real but is not a vulnerability. | Tracked as SR-S11 / limitation L4. Fix: `pip-compile` to a `requirements.lock`. |
+| O-1 | Dependencies use lower bounds (`>=`) with no lock file. | No vulnerable version was present (`pip-audit` clean), and lower bounds meant `pip-audit` surfaced advisories rather than being masked by a stale pin. The reproducibility gap was real but was not a vulnerability. | **RESOLVED 2026-10-23.** `application/requirements.lock` pins 21 packages with sha256 hashes; the build installs with `--require-hashes`; `pip-audit` audits the lock; a CI gate catches drift. The advisory-visibility concern is met by the weekly scheduled scan. |
 | O-2 | Membership lookup costs one `GetItem` per request. | Deliberate: caching role data is how stale-privilege bugs are introduced. Cost, not security. | Accepted. Revisit with short-TTL caching plus explicit invalidation if it becomes a cost issue. |
 | O-3 | Ticket updates are last-writer-wins at field granularity. | Conditional writes prevent record replacement and resurrection; concurrent field-level clobbering is a correctness concern, not a security boundary. | Tracked as a recommended safeguard under T-08. |
-| O-4 | The execution role's `PutItem` grant is table-scoped, not sort-key-prefix-scoped. | IAM cannot express a sort-key-prefix condition (`dynamodb:LeadingKeys` constrains the partition key only). No code path writes a `USER#` key. | **Escalated** — this is the substance of risk R-06/T-06 and the top-priority next step: split memberships into their own table. |
+| O-4 | The execution role's `PutItem` grant was table-scoped, not sort-key-prefix-scoped. | IAM cannot express a sort-key-prefix condition (`dynamodb:LeadingKeys` constrains the partition key only), so "the application never writes a `USER#` key" was a compensating control rather than a boundary. | **RESOLVED 2026-10-23.** Escalated to risk R-06/T-06 and fixed by splitting memberships into a dedicated table: `GetItem` only, explicit `Deny` on every write, boundary capped the same way. Closed accepted risk AR-04. |
 | O-5 | `/v1/health` is unauthenticated. | Intentional liveness probe returning a static payload with no configuration disclosure, asserted by `tests/security/test_api_behaviour.py`. | Accepted as AR-02. |
 | O-6 | Bandit reports one LOW/MEDIUM `B105` on `finding_triage.py:392`. | False positive: a category-synonym dictionary maps the label `"secret"` to the string `"secrets"`. No credential exists. | Left visible rather than suppressed with `# nosec`. `nosec` count across the repo is **0**. |
 | O-7 | The reviewer and the author of pass 1 are the same engineer. | Methodological limitation, not a code weakness. | Disclosed in §1 and in the final assessment's Limitations. |

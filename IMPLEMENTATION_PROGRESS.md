@@ -55,7 +55,7 @@ AWS Lambda (Python 3.12, arm64) → Mangum → FastAPI
 
 | # | Decision | Rationale |
 |---|---|---|
-| D1 | JWT validation at **API Gateway**, not in application code | No code path in the app accepts a token, so a token-parsing bug has nowhere to land. Unauthenticated requests never reach compute. Cost: not locally testable (11 skipped tests) |
+| D1 | JWT validation at **API Gateway**, not in application code | No code path in the app accepts a token, so a token-parsing bug has nowhere to land. Unauthenticated requests never reach compute. Cost: not locally testable (13 skipped tests) |
 | D2 | Identity read **only** from `requestContext.authorizer.jwt.claims` | Anything reachable from an HTTP header is attacker-controlled. The single most important control in the system (finding F-001) |
 | D3 | Role resolved from a **server-side membership record**, not the token | A token is a cached snapshot; a user demoted five minutes ago still carries one. Revocation then takes effect immediately (finding F-002) |
 | D4 | Cognito app client has **no write access** to `custom:organization_id` / `custom:role` | Closes self-asserted tenancy and privilege at the identity provider |
@@ -93,7 +93,7 @@ and stated wherever it is relevant.
 |---|---|
 | Runtime (Lambda) | Minimal: `fastapi`, `pydantic`, `pydantic-settings`, `mangum`, `boto3` |
 | Development | `[project.optional-dependencies].dev`; never shipped to Lambda |
-| Pinning | Lower bounds (`>=`) so `pip-audit` surfaces advisories rather than being masked by a stale pin. A lock file is the documented gap (L4 / S-2) |
+| Pinning | `application/requirements.lock` pins all 21 resolved packages with sha256 hashes. The Lambda build installs from it with `--require-hashes`, so a substituted wheel fails the build. `requirements.txt` keeps lower bounds as the *source*; a CI gate recompiles and diffs to catch drift |
 | Supply chain | `pip-audit` in CI against runtime **and** dev trees; weekly scheduled re-scan |
 
 ---
@@ -106,7 +106,7 @@ and stated wherever it is relevant.
 | M2 | FastAPI multi-tenant application (pass 1 → pass 2) | ✅ |
 | M3 | STRIDE threat model package | ✅ |
 | M4 | Manual code review, findings, remediation, regression evidence | ✅ |
-| M5 | Terraform infrastructure | 🟡 — written and statically analysed; `terraform validate` not run (L2) |
+| M5 | Terraform infrastructure (2 tables, least-privilege IAM) | 🟡 — written and statically analysed; `terraform validate` not run (L2) |
 | M6 | Security automation: IAM analyzer + finding triage engine | ✅ |
 | M7 | GitHub Actions security pipeline | 🟡 — implemented and locally mirrored; never executed (L3) |
 | M8 | Monitoring, optional Security Hub triage, incident runbooks | 🟡 — runbooks ✅; alarms never observed firing (L1) |
@@ -153,10 +153,10 @@ Regression experiment, run today:
 
 ```
 $ python -m pytest tests/security -q      # @ v1-pre-review
-84 failed, 92 passed
+93 failed, 102 passed
 
 $ python -m pytest tests/security -q      # @ HEAD
-176 passed
+195 passed
 ```
 
 F-005 is recorded as `Validated: partial` — the pre-remediation IAM policy is not preserved
@@ -174,7 +174,7 @@ dashboard; optional Security Hub module (off by default).
 
 | Verified | Result |
 |---|---|
-| Checkov | 134 passed, **0 failed**, 12 inline justified skips |
+| Checkov | 137 passed, **0 failed**, 12 inline justified skips |
 | Custom HCL reference linter | Pass (root + module) |
 | IAM policy analysis | 1 INFO, **0 blocking** |
 | `terraform fmt` / `validate` / `plan` | **NOT RUN** — binary not installable (L2) |
@@ -223,7 +223,7 @@ a 6-option containment framework), `cloud-security-finding-response.md`,
 
 ```
 $ ./scripts/run_security_checks.sh
-Passed: 15   Failed: 0
+Passed: 16   Failed: 0
 ```
 
 Three genuine failures were found and **fixed** during this pass rather than written off:
@@ -260,17 +260,17 @@ Everything below is a real command and its real result, 2026-10-23.
 
 | Check | Result |
 |---|---|
-| `pytest -q` | **584 passed, 11 skipped** |
+| `pytest -q` | **603 passed, 13 skipped** |
 | `pytest -m unit` / `integration` / `security` / `regression` | 377 / 43 / 258 / 122 — all pass |
-| `pytest -m aws` | 11 skipped, each naming its prerequisite |
-| `pytest tests/security` @ `v1-pre-review` | **84 failed, 92 passed** |
-| `pytest tests/security` @ `HEAD` | **176 passed** |
-| `pytest --cov` | **89%** (2,058 statements, 668 branches) |
+| `pytest -m aws` | 13 skipped, each naming its prerequisite |
+| `pytest tests/security` @ `v1-pre-review` | **93 failed, 102 passed** |
+| `pytest tests/security` @ `HEAD` | **195 passed** |
+| `pytest --cov` | **89%** (2,064 statements, 668 branches) |
 | `ruff check .` | All checks passed |
 | `ruff format --check .` | 64 files already formatted |
 | `bandit -ll` | 0 at medium+; 4,780 lines; **0 `nosec`** |
 | `pip-audit` | 21 packages, **0 vulnerabilities** |
-| `checkov -d infrastructure/` | 134 passed, **0 failed**, 12 justified skips |
+| `checkov -d infrastructure/` | 137 passed, **0 failed**, 12 justified skips |
 | `scripts/validate_terraform.py` | Pass (root + module) |
 | `iam_policy_checker.py` on deployed policies | 1 INFO, **0 blocking** |
 | IAM gate self-test | Insecure fixture correctly **rejected** |
@@ -294,7 +294,7 @@ Carried forward, not hidden. Full detail:
 | L1 | No AWS account used; nothing deployed | `docs/AWS_DEPLOYMENT.md`, README |
 | L2 | `terraform validate` / `fmt` / `plan` never run — `releases.hashicorp.com` is outside this environment's egress allow-list (proxy returned `403 to CONNECT`) | `docs/AWS_DEPLOYMENT.md` |
 | L3 | CI workflow never executed; CodeQL has produced no results; actions tag-pinned not SHA-pinned | `docs/SECURITY.md` §4 |
-| L4 | No `requirements.lock`; lower-bound pinning | §1.4 above |
+
 | L5 | DynamoDB behaviour asserted against `moto`, not the real service | `docs/TESTING.md` |
 | L6 | Security Hub never enabled; ASFF transformation unit-tested only | `docs/AWS_DEPLOYMENT.md` §7 |
 | L7 | Author and reviewer are the same engineer | `assessments/code-review-checklist.md` §1 |
@@ -308,12 +308,21 @@ Carried forward, not hidden. Full detail:
 Ranked. Full list of 13 deferred safeguards:
 [`assessments/remediation-tracker.md`](assessments/remediation-tracker.md) §3.
 
+### Done 2026-10-23
+
+| Action | Addressed |
+|---|---|
+| ✅ Split memberships into a dedicated table, role read-only on it | **AR-04 / T-06 / R-06** — the last Medium confidentiality risk |
+| ✅ Hashed dependency lock + CI drift gate | **L4** / S-2 / SR-S11 |
+| ✅ Three AST-based architectural fitness functions | S-8, S-9, S-10 |
+
+### Outstanding
+
 | # | Action | Addresses |
 |---|---|---|
-| 1 | Split memberships into a separate DynamoDB table so the execution role is read-only on them | AR-04 / T-06 — the last Medium residual risk with a clean fix |
-| 2 | Deploy to a sandbox AWS account and run the 11 AWS-gated tests | L1, L2, L5 |
-| 3 | Push to GitHub and observe one pipeline run | L3 — CodeQL has produced nothing so far |
-| 4 | Generate a dependency lock file | L4 |
-| 5 | Mandate MFA for the administrator role; shorten the production access-token TTL | AR-03 |
-| 6 | Add WAF rate-based rules and per-tenant usage plans | AR-05 |
-| 7 | Independent security review by another engineer | L7 |
+| 1 | Deploy to a sandbox AWS account and run the 13 AWS-gated tests | L1, L2, L5 — now the largest gap |
+| 2 | Push to GitHub and observe one pipeline run | L3 — CodeQL has produced nothing so far |
+| 3 | Independent security review by another engineer | L7 |
+| 4 | Mandate MFA for the administrator role; shorten the production access-token TTL | AR-03 |
+| 5 | Add WAF rate-based rules and per-tenant usage plans | AR-05 |
+| 6 | Implement and secure the membership provisioning process | L9 — now the dominant exposure for T-06 |
