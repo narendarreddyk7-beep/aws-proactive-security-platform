@@ -85,15 +85,22 @@ if [ "$BUILD_API" = true ]; then
     )
   fi
 
+  # Installed from the LOCK, not from loose package names, and with
+  # --require-hashes so pip refuses any artifact whose hash does not match.
+  # That makes the deployed artifact reproducible and gives the install step a
+  # supply-chain check: a tampered or substituted wheel fails the build instead
+  # of shipping. Regenerate the lock with:
+  #   python -m piptools compile --generate-hashes --strip-extras \
+  #     --output-file application/requirements.lock application/requirements.txt
   if ! pip install \
       --quiet \
       --target "$API_BUILD_DIR" \
       "${PIP_PLATFORM_ARGS[@]}" \
-      --upgrade \
-      fastapi pydantic pydantic-settings mangum; then
+      --require-hashes \
+      -r application/requirements.lock; then
     warn "Cross-platform wheel install failed."
     warn "This usually means no manylinux wheel exists for a pinned version."
-    warn "Check application/requirements.txt, or build inside a container:"
+    warn "Check application/requirements.lock, or build inside a container:"
     warn "  docker run --rm -v \"\$PWD\":/w -w /w public.ecr.aws/lambda/python:${TARGET_PYTHON_VERSION} \\"
     warn "    ./scripts/build_lambda_package.sh --api-only"
     exit 1

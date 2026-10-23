@@ -192,12 +192,29 @@ jobs:
         run: python -m pip install 'pip-audit>=2.7'
 
       - name: Audit runtime dependencies
-        # The runtime tree is what ships to Lambda, so it is gated hardest.
+        # Audited against the LOCK, which is what actually ships to Lambda.
         run: |
           mkdir -p reports
-          python -m pip_audit --requirement application/requirements.txt \
+          python -m pip_audit --requirement application/requirements.lock \
             --format json --output reports/pip-audit.json || true
-          python -m pip_audit --requirement application/requirements.txt --strict
+          python -m pip_audit --requirement application/requirements.lock --strict
+
+      - name: Lock file is in sync with requirements.txt
+        # A lock that has drifted from its source is a lock nobody can trust:
+        # the audited tree and the deployed tree stop being the same thing.
+        # Recompile and diff rather than relying on a developer remembering.
+        run: |
+          python -m pip install --quiet 'pip-tools>=7.4'
+          python -m piptools compile --generate-hashes --strip-extras --quiet \
+            --output-file /tmp/requirements.lock.check application/requirements.txt
+          if ! diff <(grep -v '^#' application/requirements.lock) \
+                    <(grep -v '^#' /tmp/requirements.lock.check); then
+            echo "::error::application/requirements.lock is stale. Regenerate it with:"
+            echo "::error::python -m piptools compile --generate-hashes --strip-extras --output-file application/requirements.lock application/requirements.txt"
+            exit 1
+          fi
+          echo "Lock file is in sync."
+        shell: bash
 
       - name: Audit development dependencies
         # Dev dependencies do not reach production, but they execute in CI with
