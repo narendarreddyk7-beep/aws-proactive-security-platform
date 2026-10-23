@@ -365,7 +365,7 @@ The project's assurance stops here, and saying so precisely is part of the work.
 | ID | Limitation | Consequence |
 |---|---|---|
 | **L1** | **Nothing deployed to AWS.** No account used | Live JWT rejection, real IAM enforcement, Cognito flows and alarm firing are all **unverified**. 13 tests skip for exactly this reason |
-| **L2** | **`terraform validate` / `fmt` / `plan` never run.** Binary not installable (`releases.hashicorp.com` outside the egress allow-list; proxy returned `403 to CONNECT`) | Checkov parsing all 10 files is partial evidence the HCL parses — it is **not** provider-schema validation. An incorrect argument name would not have been caught |
+| **L2** | **Partly closed.** `terraform fmt` and `validate` ran on a separate machine (Terraform 1.17.0, AWS provider 6.70.0) on 2026-10-23 — the binary is not installable in the build environment. `validate` **found a real defect** (a `templatefile` vars map that had drifted), now fixed, and the configuration is canonically formatted. Two `key_schema` deprecation warnings remain unmigrated. `plan`/`apply` still unrun — that is L1 |
 | **L3** | **CI workflow never executed.** No remote repository | **CodeQL has produced no results at all** — the one tool with no local equivalent. Everything else is mirrored by a local runner passing 16/16. Actions are pinned to tags, not commit SHAs |
 | **L5** | DynamoDB behaviour asserted against **`moto`** | Conditional-write semantics and GSI consistency are verified against an emulator, not the real service |
 | **L6** | **Security Hub never enabled** | The ASFF transformation is unit-tested with 38 synthetic events; end-to-end delivery is unverified. Off by default |

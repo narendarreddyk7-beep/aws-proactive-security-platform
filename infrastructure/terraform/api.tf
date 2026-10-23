@@ -39,10 +39,10 @@ resource "aws_apigatewayv2_api" "main" {
     for_each = length(var.cors_allowed_origins) > 0 ? [1] : []
 
     content {
-      allow_origins = var.cors_allowed_origins
-      allow_methods = ["GET", "POST", "PATCH", "OPTIONS"]
-      allow_headers = ["authorization", "content-type", "x-request-id"]
-      expose_headers = ["x-request-id"]
+      allow_origins     = var.cors_allowed_origins
+      allow_methods     = ["GET", "POST", "PATCH", "OPTIONS"]
+      allow_headers     = ["authorization", "content-type", "x-request-id"]
+      expose_headers    = ["x-request-id"]
       allow_credentials = true
       max_age           = 600
     }
@@ -85,9 +85,9 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
 resource "aws_apigatewayv2_integration" "lambda" {
   api_id = aws_apigatewayv2_api.main.id
 
-  integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.api.invoke_arn
-  integration_method     = "POST"
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.api.invoke_arn
+  integration_method = "POST"
   # Payload format 2.0 is what puts the verified claims at
   # `requestContext.authorizer.jwt.claims`. Format 1.0 shapes the event
   # differently and would break identity extraction.
@@ -109,7 +109,7 @@ resource "aws_apigatewayv2_integration" "lambda" {
 locals {
   # `authorization_scopes` is only meaningful when scope enforcement is on.
   # See `var.enable_scope_enforcement` for why it defaults to off.
-  read_scopes = var.enable_scope_enforcement ? ["support/tickets.read"] : []
+  read_scopes  = var.enable_scope_enforcement ? ["support/tickets.read"] : []
   write_scopes = var.enable_scope_enforcement ? ["support/tickets.write"] : []
 
   protected_routes = {

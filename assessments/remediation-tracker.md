@@ -131,6 +131,8 @@ command and its real result.
 | HCL reference lint | `scripts/validate_terraform.py` | Pass (root + module) | 2026-10-23 |
 | Finding aggregation | `finding_triage.py` on 4 reports | 2 open (P4), 0 duplicates | 2026-10-23 |
 | Full pipeline | `./scripts/run_security_checks.sh` | **16/16 stages pass** | 2026-10-23 |
-| `terraform fmt` / `validate` / `plan` | — | **NOT RUN** — binary unavailable (L2) | — |
+| `terraform fmt -check -recursive` | separate machine, TF 1.17.0 | 5 files reformatted; now clean | 2026-10-23 |
+| `terraform validate` | separate machine, TF 1.17.0 + AWS provider 6.70.0 | **FAILED, then fixed** → `Success! The configuration is valid` (2 deprecation warnings) | 2026-10-23 |
+| `terraform plan` / `apply` | — | **NOT RUN** — no AWS account (L1) | — |
 | Live AWS behaviour | — | **NOT RUN** — no deployment (L1) | — |
 | GitHub Actions workflow | — | **NOT RUN** — no remote repository (L3) | — |

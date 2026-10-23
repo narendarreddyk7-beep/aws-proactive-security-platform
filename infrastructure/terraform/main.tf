@@ -207,7 +207,7 @@ check "production_hardening" {
   }
 
   assert {
-    condition = !local.is_production || var.enable_deletion_protection
+    condition     = !local.is_production || var.enable_deletion_protection
     error_message = "Production deployment without DynamoDB deletion protection."
   }
 

@@ -71,10 +71,10 @@ locals {
     table_arn            = aws_dynamodb_table.main.arn
     membership_table_arn = aws_dynamodb_table.memberships.arn
     log_group_arn        = aws_cloudwatch_log_group.lambda.arn
-    kms_key_arn   = local.policy_kms_key_arn
-    region        = local.region
-    account_id    = local.account_id
-    partition     = local.partition
+    kms_key_arn          = local.policy_kms_key_arn
+    region               = local.region
+    account_id           = local.account_id
+    partition            = local.partition
   }
 }
 

@@ -31,7 +31,7 @@ output "cognito_user_pool_client_id" {
     JWT authorizer validates. Public by design -- this client has no secret
     and relies on the authorization-code flow with PKCE.
   EOT
-  value = aws_cognito_user_pool_client.api.id
+  value       = aws_cognito_user_pool_client.api.id
 }
 
 output "cognito_issuer_url" {
@@ -75,7 +75,7 @@ output "lambda_execution_role_arn" {
     part only) to run the IAM least-privilege checks in
     tests/integration/test_aws_gateway_contract.py.
   EOT
-  value = aws_iam_role.lambda.arn
+  value       = aws_iam_role.lambda.arn
 }
 
 output "lambda_log_group_name" {
@@ -89,7 +89,7 @@ output "api_access_log_group_name" {
     place a 401 rejected by the authorizer is recorded -- those requests never
     reach Lambda. Runbook A reads this first.
   EOT
-  value = aws_cloudwatch_log_group.api_access.name
+  value       = aws_cloudwatch_log_group.api_access.name
 }
 
 output "security_alarm_topic_arn" {
@@ -125,21 +125,21 @@ output "security_dashboard_url" {
 output "security_posture" {
   description = "Effective security posture of this deployment. Review after every apply."
   value = {
-    environment                = var.environment
-    identity_source            = "gateway (API Gateway JWT authorizer)"
-    mfa                        = var.cognito_mfa_configuration
-    cognito_threat_protection  = var.cognito_advanced_security_mode
-    customer_managed_kms       = var.create_kms_key
-    point_in_time_recovery     = var.enable_point_in_time_recovery
-    deletion_protection        = var.enable_deletion_protection
-    log_retention_days         = var.log_retention_days
-    xray_tracing               = var.enable_xray
-    scope_enforcement          = var.enable_scope_enforcement
-    cors_origins_configured    = length(var.cors_allowed_origins)
-    api_rate_limit_per_second  = var.api_throttling_rate_limit
+    environment                 = var.environment
+    identity_source             = "gateway (API Gateway JWT authorizer)"
+    mfa                         = var.cognito_mfa_configuration
+    cognito_threat_protection   = var.cognito_advanced_security_mode
+    customer_managed_kms        = var.create_kms_key
+    point_in_time_recovery      = var.enable_point_in_time_recovery
+    deletion_protection         = var.enable_deletion_protection
+    log_retention_days          = var.log_retention_days
+    xray_tracing                = var.enable_xray
+    scope_enforcement           = var.enable_scope_enforcement
+    cors_origins_configured     = length(var.cors_allowed_origins)
+    api_rate_limit_per_second   = var.api_throttling_rate_limit
     lambda_reserved_concurrency = var.lambda_reserved_concurrency
-    security_hub_triage        = var.enable_security_hub_integration
-    alarm_email_subscribed     = var.alarm_email != ""
+    security_hub_triage         = var.enable_security_hub_integration
+    alarm_email_subscribed      = var.alarm_email != ""
   }
 }
 

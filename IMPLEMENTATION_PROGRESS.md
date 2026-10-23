@@ -106,7 +106,7 @@ and stated wherever it is relevant.
 | M2 | FastAPI multi-tenant application (pass 1 → pass 2) | ✅ |
 | M3 | STRIDE threat model package | ✅ |
 | M4 | Manual code review, findings, remediation, regression evidence | ✅ |
-| M5 | Terraform infrastructure (2 tables, least-privilege IAM) | 🟡 — written and statically analysed; `terraform validate` not run (L2) |
+| M5 | Terraform infrastructure (2 tables, least-privilege IAM) | 🟡 — `fmt` and `validate` now pass on a real Terraform install; `plan`/`apply` unrun (L1) |
 | M6 | Security automation: IAM analyzer + finding triage engine | ✅ |
 | M7 | GitHub Actions security pipeline | 🟡 — implemented and locally mirrored; never executed (L3) |
 | M8 | Monitoring, optional Security Hub triage, incident runbooks | 🟡 — runbooks ✅; alarms never observed firing (L1) |
@@ -177,7 +177,9 @@ dashboard; optional Security Hub module (off by default).
 | Checkov | 137 passed, **0 failed**, 12 inline justified skips |
 | Custom HCL reference linter | Pass (root + module) |
 | IAM policy analysis | 1 INFO, **0 blocking** |
-| `terraform fmt` / `validate` / `plan` | **NOT RUN** — binary not installable (L2) |
+| `terraform fmt -check -recursive` | 5 files reformatted on a separate machine; now clean |
+| `terraform validate` | **FAILED** (found the templatefile drift), fixed, now `Success! The configuration is valid` |
+| `terraform plan` / `apply` | **NOT RUN** — no AWS account (L1) |
 
 ### M6 — Security automation ✅
 
@@ -278,7 +280,9 @@ Everything below is a real command and its real result, 2026-10-23.
 | `scripts/run_security_checks.sh` | **15 / 15 stages pass** |
 | `scripts/local_server.py` + full demo flow | All 16 demo assertions behaved as documented |
 | Ticket content in logs after the demo | **0 occurrences** |
-| `terraform fmt` / `validate` / `plan` | **NOT RUN** (L2) |
+| `terraform fmt -check -recursive` | 5 files reformatted on a separate machine; now clean |
+| `terraform validate` | **FAILED** (found the templatefile drift), fixed, now `Success! The configuration is valid` |
+| `terraform plan` / `apply` | **NOT RUN** — no AWS account (L1) |
 | AWS deployment | **NOT PERFORMED** (L1) |
 | GitHub Actions run | **NEVER EXECUTED** (L3) |
 
@@ -292,7 +296,7 @@ Carried forward, not hidden. Full detail:
 | ID | Limitation | Where documented |
 |---|---|---|
 | L1 | No AWS account used; nothing deployed | `docs/AWS_DEPLOYMENT.md`, README |
-| L2 | `terraform validate` / `fmt` / `plan` never run — `releases.hashicorp.com` is outside this environment's egress allow-list (proxy returned `403 to CONNECT`) | `docs/AWS_DEPLOYMENT.md` |
+| L2 | **Partly closed 2026-10-23.** `fmt` and `validate` were run on a separate machine (the binary is not installable here) — `validate` found a real defect, now fixed. Two deprecation warnings remain unmigrated; `plan`/`apply` still unrun (that is L1) | `docs/AWS_DEPLOYMENT.md` |
 | L3 | CI workflow never executed; CodeQL has produced no results; actions tag-pinned not SHA-pinned | `docs/SECURITY.md` §4 |
 
 | L5 | DynamoDB behaviour asserted against `moto`, not the real service | `docs/TESTING.md` |

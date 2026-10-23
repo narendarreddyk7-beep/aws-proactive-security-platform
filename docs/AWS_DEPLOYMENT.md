@@ -6,11 +6,20 @@
 > point. The commands below are written from the Terraform configuration, not transcribed
 > from a run that happened.
 >
-> **`terraform fmt`, `terraform validate` and `terraform plan` have never been executed.**
-> The Terraform binary cannot be installed in the environment this repository was authored
-> in — `releases.hashicorp.com` is outside its egress allow-list, and the proxy returns
-> `403 to CONNECT`. Routing around a policy denial is not an option, so the gap is recorded
-> rather than worked around.
+> **`terraform fmt` and `terraform validate` have now been run** — on 2026-10-23, on a
+> separate machine with Terraform 1.17.0 and AWS provider 6.70.0, because the binary cannot
+> be installed in the environment this repository was authored in
+> (`releases.hashicorp.com` is outside its egress allow-list; the proxy returns
+> `403 to CONNECT`, and routing around a policy denial is not an option).
+>
+> `validate` **failed on the first run** and found a real defect: a `templatefile` vars map
+> that had drifted from the policy document it renders. It is fixed, the configuration is
+> canonically formatted, and `validate` now reports
+> `Success! The configuration is valid` with two `key_schema` deprecation warnings.
+>
+> **`terraform plan` and `terraform apply` have still never been executed**, because that
+> needs an AWS account. Everything below the "Deploy" heading is written from the
+> configuration, not transcribed from a run.
 >
 > What **has** been verified statically:
 >
