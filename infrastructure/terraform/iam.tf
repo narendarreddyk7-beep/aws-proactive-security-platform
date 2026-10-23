@@ -169,19 +169,19 @@ resource "aws_iam_policy" "lambda_boundary" {
   name        = "${local.name_prefix}-lambda-boundary"
   description = "Permissions boundary capping what the support API execution role can ever hold"
 
+  # Uses the SAME variable map as the execution policy, deliberately.
+  #
+  # This call previously carried its own inline copy of the map, which drifted
+  # the moment a new placeholder (`membership_table_arn`) was added to the
+  # boundary document: `terraform validate` failed with "vars map does not
+  # contain key". One source of truth means the two cannot disagree again.
+  #
+  # The boundary is attached to the role at creation, before the table ARNs are
+  # strictly needed, but Terraform resolves the dependency order from these
+  # references.
   policy = templatefile(
     "${path.module}/policies/lambda-permissions-boundary.json",
-    {
-      # The boundary is attached to the role at creation, before the table's
-      # ARN is strictly needed, but Terraform resolves the dependency order
-      # from these references.
-      table_arn     = aws_dynamodb_table.main.arn
-      log_group_arn = aws_cloudwatch_log_group.lambda.arn
-      kms_key_arn   = local.policy_kms_key_arn
-      region        = local.region
-      account_id    = local.account_id
-      partition     = local.partition
-    }
+    local.policy_template_vars
   )
 
   tags = {

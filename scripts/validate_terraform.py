@@ -43,6 +43,7 @@ CHECKS PERFORMED
   TF010  Output with no description
   TF011  Hardcoded AWS account id outside a documented placeholder
   TF012  Possible hardcoded secret
+  TF013  templatefile() call missing a variable the template references
 
 USAGE
     python scripts/validate_terraform.py infrastructure/terraform
@@ -479,6 +480,107 @@ def check_hardcoded_values(directory: Path) -> list[Issue]:
     return issues
 
 
+def check_templatefile_vars(directory: Path) -> list[Issue]:
+    """Every `${placeholder}` in a template must have a key in the vars map.
+
+    WHY THIS RULE EXISTS
+    --------------------
+    It was added after `terraform validate` caught a defect this linter had
+    missed. `aws_iam_policy.lambda_boundary` rendered
+    `policies/lambda-permissions-boundary.json` through its own inline vars
+    map, which drifted when `${membership_table_arn}` was added to the
+    document. Terraform failed with "vars map does not contain key"; Checkov,
+    the IAM policy analyzer and this linter all passed, because none of them
+    resolve `templatefile()` arguments.
+
+    That is the whole category: a policy document can be correct, and the HCL
+    can be correct, and the *binding between them* can still be broken. Since
+    the committed JSON policies are the thing CI gates (decision D11), a
+    silent failure to render one is worth catching here rather than at apply
+    time.
+
+    LIMITATIONS
+    -----------
+    Resolves two forms only: a literal inline object, and a bare
+    `local.<name>` whose definition is a literal object in the same directory.
+    A map built by `merge()`, a variable, or anything computed is reported as
+    `needs-context` rather than guessed at.
+    """
+    issues: list[Issue] = []
+
+    tf_text = {path: path.read_text(encoding="utf-8") for path in sorted(directory.glob("*.tf"))}
+    combined = "\n".join(tf_text.values())
+
+    # Locals that are literal objects, so `local.x` can be resolved.
+    local_maps: dict[str, set[str]] = {}
+    for block in re.finditer(r"locals\s*\{(.*?)\n\}", combined, re.S):
+        body = block.group(1)
+        for entry in re.finditer(
+            r"^\s{2,}([a-z_][a-z0-9_]*)\s*=\s*\{(.*?)^\s{2,}\}", body, re.S | re.M
+        ):
+            local_maps[entry.group(1)] = set(
+                re.findall(r"^\s*([a-z_][a-z0-9_]*)\s*=", entry.group(2), re.M)
+            )
+
+    pattern = re.compile(
+        r'templatefile\(\s*"\$\{path\.module\}/([^"]+)"\s*,\s*(local\.[a-z_][a-z0-9_]*|\{.*?\n\s{4}\})',
+        re.S,
+    )
+
+    for path, text in tf_text.items():
+        for match in pattern.finditer(text):
+            template_rel, vars_expr = match.group(1), match.group(2).strip()
+            line_number = text[: match.start()].count("\n") + 1
+            template_path = directory / template_rel
+
+            if not template_path.is_file():
+                issues.append(
+                    Issue(
+                        "TF013",
+                        SEVERITY_ERROR,
+                        f"{path.name}:{line_number}",
+                        f"templatefile() references '{template_rel}', which does not exist",
+                    )
+                )
+                continue
+
+            needed = set(
+                re.findall(r"\$\{([a-z_][a-z0-9_]*)\}", template_path.read_text(encoding="utf-8"))
+            )
+
+            if vars_expr.startswith("local."):
+                local_name = vars_expr.split(".", 1)[1]
+                if local_name not in local_maps:
+                    issues.append(
+                        Issue(
+                            "TF013",
+                            SEVERITY_WARNING,
+                            f"{path.name}:{line_number}",
+                            f"cannot resolve vars map 'local.{local_name}' (not a literal "
+                            f"object); '{template_rel}' needs {sorted(needed)} - verify by hand",
+                        )
+                    )
+                    continue
+                provided = local_maps[local_name]
+                source = f"local.{local_name}"
+            else:
+                provided = set(re.findall(r"^\s*([a-z_][a-z0-9_]*)\s*=", vars_expr, re.M))
+                source = "the inline vars map"
+
+            for key in sorted(needed - provided):
+                issues.append(
+                    Issue(
+                        "TF013",
+                        SEVERITY_ERROR,
+                        f"{path.name}:{line_number}",
+                        f"'{template_rel}' references ${{{key}}}, but {source} does not "
+                        f"provide it. terraform would fail with 'vars map does not contain key'",
+                    )
+                )
+
+    return issues
+
+
 def validate(directory: Path, *, check_hygiene_rules: bool = True) -> list[Issue]:
     """Run every check against one Terraform directory."""
     parsed, issues = parse_directory(directory)
@@ -489,6 +591,7 @@ def validate(directory: Path, *, check_hygiene_rules: bool = True) -> list[Issue
     issues.extend(check_references(parsed, symbols))
     issues.extend(check_module_calls(parsed, symbols, directory))
     issues.extend(check_hardcoded_values(directory))
+    issues.extend(check_templatefile_vars(directory))
     if check_hygiene_rules:
         issues.extend(check_hygiene(parsed, symbols))
 

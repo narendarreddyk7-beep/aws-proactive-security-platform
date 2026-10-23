@@ -148,7 +148,7 @@ which passes **16/16 stages**.
 | 2c | pip-audit (dev) | **any** known vulnerability fails |
 | 3a | `terraform fmt -check` | any diff fails |
 | 3b | `terraform validate` | failure fails |
-| 3c | Custom HCL reference linter | any error fails |
+| 3c | Custom HCL reference linter (incl. **TF013** `templatefile()` var completeness) | any error fails |
 | 3d | Checkov | **any** failed check fails |
 | 3e | `iam_policy_checker.py` on deployed policies | **high severity and above** fails |
 | 3f | **IAM gate self-test** | the insecure fixture **must** fail, or the job fails |
