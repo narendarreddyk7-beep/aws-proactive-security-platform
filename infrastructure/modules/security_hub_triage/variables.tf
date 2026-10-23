@@ -31,7 +31,7 @@ variable "kms_key_arn" {
     module passes its customer-managed key, falling back to the AWS-managed
     `alias/aws/dynamodb` when `create_kms_key = false`.
   EOT
-  type = string
+  type        = string
 
   validation {
     condition     = can(regex("^arn:aws[a-z-]*:kms:", var.kms_key_arn))
@@ -64,8 +64,8 @@ variable "log_retention_days" {
     CloudWatch Logs retention for the function. Defaults to 365 days to match
     the root module's default posture; the caller passes its own value.
   EOT
-  type    = number
-  default = 365
+  type        = number
+  default     = 365
 }
 
 variable "notify_severities" {

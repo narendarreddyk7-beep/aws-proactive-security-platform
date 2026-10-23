@@ -34,7 +34,7 @@ output "dead_letter_queue_url" {
     A non-empty queue means findings are NOT being triaged; the
     `-dlq-not-empty` alarm fires on it.
   EOT
-  value = aws_sqs_queue.triage_dlq.url
+  value       = aws_sqs_queue.triage_dlq.url
 }
 
 output "prerequisites" {
