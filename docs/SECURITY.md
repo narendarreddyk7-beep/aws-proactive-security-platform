@@ -201,7 +201,14 @@ limitation L3.
 
 ## 4. CI status — honest
 
-**The workflow has never executed.** There is no remote repository, so:
+**The workflow has never executed.** It was pushed to GitHub on 2026-10-23 and
+immediately revealed a misconfiguration worth recording: the triggers named `main` while
+the repository's default branch was `master`, so the push produced **zero runs and no
+error**. A pipeline that silently never runs is a worse failure than one that fails — which
+is the same principle the `security-gate` job encodes, applied one level up, to the
+triggers themselves. Both branch names are now listed.
+
+As of that fix:
 
 - Job wiring and gating logic are **reviewed, not observed**.
 - **CodeQL has produced no results at all.** It is the one tool in the pipeline with no

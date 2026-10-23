@@ -44,14 +44,20 @@ name: Security CI
 
 on:
   push:
-    branches: [main]
+    # BOTH names, deliberately. A security pipeline whose triggers do not match
+    # the repository's default branch does not fail -- it silently never runs,
+    # which is strictly worse. This was found the hard way: the workflow was
+    # pinned to `main`, the repository's default branch was `master`, and the
+    # first push produced zero runs and no error. Listing both means the
+    # pipeline cannot be disabled by a branch-naming convention.
+    branches: [main, master]
   pull_request:
     # `pull_request` (NOT `pull_request_target`) is deliberate: a fork PR runs
     # with a read-only token and no access to repository secrets, so untrusted
     # code cannot exfiltrate credentials or write to the repository. There is
     # no deployment job in this workflow at all -- deploying is a separate,
     # manually-triggered workflow gated on branch protection.
-    branches: [main]
+    branches: [main, master]
   schedule:
     # Weekly, so a newly-published advisory against an unchanged dependency is
     # still found. Monday 07:17 UTC -- off the hour to avoid the scheduling peak.
