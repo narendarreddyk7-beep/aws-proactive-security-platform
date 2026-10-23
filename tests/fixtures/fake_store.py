@@ -25,6 +25,10 @@ class InMemoryTicketStore:
         self.calls: list[tuple[str, dict[str, Any]]] = []
         for ticket in tickets or []:
             self.put_ticket(ticket)
+        # Seeding is test setup, not application behaviour. Clearing the call
+        # log here is what lets a test assert "the application only ever
+        # touched my tenant" without the fixture's own writes polluting it.
+        self.calls.clear()
 
     # -- TicketStore protocol ------------------------------------------------
 
@@ -70,7 +74,9 @@ class InMemoryTicketStore:
 
         start = 0
         if cursor:
-            start_after = cursor.get("ticket_id")
+            # Mirrors the real repository: the cursor carries only DynamoDB key
+            # attributes, so the ticket id is recovered from the sort key.
+            start_after = str(cursor.get("SK", "")).removeprefix("TICKET#")
             for index, ticket in enumerate(items):
                 if ticket.ticket_id == start_after:
                     start = index + 1
@@ -82,7 +88,6 @@ class InMemoryTicketStore:
             next_key = {
                 "PK": f"TENANT#{organization_id}",
                 "SK": f"TICKET#{page[-1].ticket_id}",
-                "ticket_id": page[-1].ticket_id,
             }
         return page, next_key
 

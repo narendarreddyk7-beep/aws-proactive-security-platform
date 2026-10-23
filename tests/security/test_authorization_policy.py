@@ -252,8 +252,8 @@ def test_closed_tickets_cannot_be_silently_reopened_by_a_member(
     app_factory: AppFactory,
 ) -> None:
     """Guards finding F-013: terminal states are enforced, not advisory."""
-    from tests.fixtures.synthetic_data import make_ticket
     from app.models.ticket import TicketStatus
+    from tests.fixtures.synthetic_data import make_ticket
 
     harness = app_factory(
         tickets=[

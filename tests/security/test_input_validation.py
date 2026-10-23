@@ -171,7 +171,12 @@ def test_invalid_update_payloads_are_rejected(harness: ApiHarness, payload: dict
         pytest.param("a" * 300, id="oversized"),
         pytest.param("00000000-0000-0000-0000-00000000000g", id="invalid-hex"),
         pytest.param("%2e%2e%2f", id="encoded-traversal"),
-        pytest.param("aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa\u0000", id="null-byte"),
+        # A *raw* null byte cannot be put on the wire -- httpx rejects the URL
+        # before sending, and so would any compliant client or proxy. The
+        # percent-encoded form is transmissible, so that is the case worth
+        # asserting: it must still be rejected after decoding.
+        pytest.param("aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa%00", id="encoded-null-byte"),
+        pytest.param("aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa%0a", id="encoded-newline"),
     ],
 )
 def test_ticket_identifier_must_be_a_uuid(harness: ApiHarness, ticket_id: str) -> None:
@@ -254,7 +259,5 @@ def test_omitted_limit_uses_the_server_default(harness: ApiHarness) -> None:
     response = harness.as_admin(ORG_A, USER_A_ADMIN).client.get("/v1/tickets")
     assert response.status_code == 200, response.text
 
-    limits = [
-        kwargs["limit"] for name, kwargs in harness.tickets.calls if name == "list_tickets"
-    ]
+    limits = [kwargs["limit"] for name, kwargs in harness.tickets.calls if name == "list_tickets"]
     assert limits and all(1 <= value <= 100 for value in limits), limits

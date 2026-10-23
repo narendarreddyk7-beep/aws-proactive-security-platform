@@ -39,11 +39,15 @@ pytestmark = [pytest.mark.security, pytest.mark.integration]
 def repository(recording_table) -> DynamoDbTicketRepository:
     """A repository bound to the recording moto table, seeded cross-tenant."""
     repo = DynamoDbTicketRepository(table=recording_table)
-    repo.put_ticket(make_ticket(ticket_id=TICKET_A1, organization_id=ORG_A, created_by=USER_A_MEMBER))
+    repo.put_ticket(
+        make_ticket(ticket_id=TICKET_A1, organization_id=ORG_A, created_by=USER_A_MEMBER)
+    )
     repo.put_ticket(
         make_ticket(ticket_id=TICKET_A2, organization_id=ORG_A, created_by=USER_A_MEMBER_2)
     )
-    repo.put_ticket(make_ticket(ticket_id=TICKET_B1, organization_id=ORG_B, created_by=USER_B_MEMBER))
+    repo.put_ticket(
+        make_ticket(ticket_id=TICKET_B1, organization_id=ORG_B, created_by=USER_B_MEMBER)
+    )
     recording_table.calls.clear()
     return repo
 
@@ -194,9 +198,7 @@ def test_save_requires_the_ticket_to_already_exist(
         repository.save_ticket(ghost)
 
     write_calls = [
-        call
-        for call in recording_table.calls
-        if call.operation in {"put_item", "update_item"}
+        call for call in recording_table.calls if call.operation in {"put_item", "update_item"}
     ]
     assert write_calls, "No write was attempted"
     assert all("ConditionExpression" in call.kwargs for call in write_calls), (

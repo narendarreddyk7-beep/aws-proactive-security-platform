@@ -63,7 +63,13 @@ def test_cross_tenant_denial_does_not_disclose_existence(harness: ApiHarness) ->
     does_not_exist = harness.client.get(f"/v1/tickets/{UNKNOWN_TICKET}")
 
     assert existing_elsewhere.status_code == does_not_exist.status_code == 404
-    assert existing_elsewhere.json() == does_not_exist.json(), (
+
+    # `request_id` is unique per request by design, so it is excluded from the
+    # comparison. Everything else must be byte-identical.
+    def _comparable(response) -> dict:
+        return {k: v for k, v in response.json().items() if k != "request_id"}
+
+    assert _comparable(existing_elsewhere) == _comparable(does_not_exist), (
         "Responses differ, so the API confirms whether another tenant's ticket exists"
     )
 
@@ -171,7 +177,9 @@ def test_update_cannot_move_a_ticket_to_another_tenant(harness: ApiHarness) -> N
     stored = harness.tickets.raw(ORG_A)[TICKET_A1]
     assert stored.organization_id == ORG_A
     assert stored.created_by != USER_B_MEMBER
-    assert harness.tickets.raw(ORG_B) == {}
+    # The other tenant's partition must be untouched: still exactly the one
+    # ticket it was seeded with, and no copy of org A's ticket.
+    assert set(harness.tickets.raw(ORG_B)) == {TICKET_B1}
 
 
 # ---------------------------------------------------------------------------

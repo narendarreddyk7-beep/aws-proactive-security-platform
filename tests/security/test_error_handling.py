@@ -13,7 +13,6 @@ from tests.conftest import ApiHarness, AppFactory
 from tests.fixtures.synthetic_data import (
     ORG_A,
     SENSITIVE_DESCRIPTION,
-    TICKET_A1,
     TICKET_A2,
     USER_A_MEMBER,
     USER_A_MEMBER_2,
@@ -84,9 +83,7 @@ def test_unhandled_error_response_contains_no_diagnostics(app_factory: AppFactor
 
 
 @pytest.mark.regression
-def test_unhandled_error_is_logged_with_full_detail(
-    app_factory: AppFactory, capture_logs
-) -> None:
+def test_unhandled_error_is_logged_with_full_detail(app_factory: AppFactory, capture_logs) -> None:
     """Guards finding F-008.
 
     Redaction must not destroy debuggability: the detail the client does *not*
@@ -104,9 +101,9 @@ def test_unhandled_error_is_logged_with_full_detail(
     request_id = response.json()["request_id"]
 
     assert marker in logs.text(), "The failure detail was not logged anywhere"
-    assert any(
-        payload.get("request_id") == request_id for payload in logs.payloads()
-    ), "The log line cannot be correlated to the response the caller received"
+    assert any(payload.get("request_id") == request_id for payload in logs.payloads()), (
+        "The log line cannot be correlated to the response the caller received"
+    )
 
 
 @pytest.mark.regression

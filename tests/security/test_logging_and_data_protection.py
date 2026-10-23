@@ -16,7 +16,7 @@ import json
 
 import pytest
 
-from tests.conftest import ApiHarness, AppFactory
+from tests.conftest import AppFactory
 from tests.fixtures.synthetic_data import (
     ORG_A,
     SENSITIVE_DESCRIPTION,

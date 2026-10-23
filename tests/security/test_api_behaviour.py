@@ -187,9 +187,7 @@ def test_cors_does_not_reflect_arbitrary_origins(app_factory: AppFactory) -> Non
     harness = app_factory(env={"APP_CORS_ALLOW_ORIGINS": "https://app.example.invalid"})
     harness.as_member(ORG_A, USER_A_MEMBER)
 
-    response = harness.client.get(
-        "/v1/health", headers={"Origin": "https://evil.example.invalid"}
-    )
+    response = harness.client.get("/v1/health", headers={"Origin": "https://evil.example.invalid"})
     allowed = response.headers.get("access-control-allow-origin")
     assert allowed != "*", "Wildcard CORS origin is configured"
     assert allowed != "https://evil.example.invalid", "An untrusted origin was reflected"
@@ -201,9 +199,7 @@ def test_cors_allows_the_configured_origin(app_factory: AppFactory) -> None:
     harness = app_factory(env={"APP_CORS_ALLOW_ORIGINS": "https://app.example.invalid"})
     harness.as_member(ORG_A, USER_A_MEMBER)
 
-    response = harness.client.get(
-        "/v1/health", headers={"Origin": "https://app.example.invalid"}
-    )
+    response = harness.client.get("/v1/health", headers={"Origin": "https://app.example.invalid"})
     assert response.headers.get("access-control-allow-origin") == "https://app.example.invalid"
 
 

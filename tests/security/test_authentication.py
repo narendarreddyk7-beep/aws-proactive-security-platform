@@ -124,7 +124,9 @@ def test_identity_headers_cannot_override_verified_claims(
     assert response.status_code == 200, response.text
 
     returned_orgs = {item["organization_id"] for item in response.json()["items"]}
-    assert returned_orgs <= {ORG_A}, f"Spoofed headers changed the effective tenant: {returned_orgs}"
+    assert returned_orgs <= {ORG_A}, (
+        f"Spoofed headers changed the effective tenant: {returned_orgs}"
+    )
 
     # Every store call must have been scoped to the verified tenant.
     for _name, kwargs in harness.tickets.calls:
@@ -248,9 +250,7 @@ def test_local_identity_adapter_is_refused_outside_local_environment(
     rather than starting insecurely.
     """
     with pytest.raises(Exception) as exc_info:
-        app_factory(
-            env={"APP_IDENTITY_SOURCE": "local_test", "APP_ENVIRONMENT": "production"}
-        )
+        app_factory(env={"APP_IDENTITY_SOURCE": "local_test", "APP_ENVIRONMENT": "production"})
     assert "local" in str(exc_info.value).lower()
 
 
