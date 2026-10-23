@@ -201,7 +201,8 @@ limitation L3.
 
 ## 4. CI status — honest
 
-**The workflow has never executed.** It was pushed to GitHub on 2026-10-23 and
+**The workflow now executes, and CodeQL has produced results.** It was pushed to GitHub on
+2026-10-23 and
 immediately revealed a misconfiguration worth recording: the triggers named `main` while
 the repository's default branch was `master`, so the push produced **zero runs and no
 error**. A pipeline that silently never runs is a worse failure than one that fails — which
